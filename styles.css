@@ -6,8 +6,8 @@
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #f0f2f5;
+  font-family: 'Montserrat', sans-serif;
+  background: radial-gradient(circle at top, #f7f5ff 0%, #e5f4ff 45%, #f6fff7 100%);
   color: #333;
   min-height: 100vh;
   padding: 24px 16px;
@@ -28,9 +28,139 @@ header {
 }
 
 header h1 {
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: 700;
   color: #1a1a2e;
+  font-family: 'Margarine';
+}
+
+/* ── Tabs ── */
+.tab-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 260px; /* larger gap between tabs and the add button */
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-add {
+  /* keep btn-add styling consistent with existing rules */
+}
+
+.tab {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.tab.active {
+  background: #4f46e5;
+  border-color: rgba(79, 70, 229, 0.9);
+  color: #fff;
+}
+
+.tab-panel {
+  display: block;
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+/* ── Modal ── */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.modal-content {
+  position: relative;
+  width: min(400px, 95vw);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  padding: 22px 22px 18px;
+  z-index: 1;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.modal-header h2 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #666;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.btn-secondary {
+  padding: 10px 18px;
+  background: #f0f2f5;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #333;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.modal[hidden] {
+  display: none;
 }
 
 .subtitle {
@@ -44,6 +174,7 @@ header h1 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  margin-bottom: 24px; /* space before the add-transaction form */
 }
 
 .card {
@@ -97,7 +228,7 @@ header h1 {
 
 .form-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -130,6 +261,42 @@ header h1 {
   outline: none;
   border-color: #4f46e5;
   background: #fff;
+}
+
+.form-group textarea {
+  padding: 9px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #333;
+  background: #fafafa;
+  transition: border-color 0.2s;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+  background: #fff;
+}
+
+.amount-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.dollar-sign {
+  position: absolute;
+  left: 12px;
+  color: #666;
+  font-weight: 600;
+  z-index: 1;
+}
+
+.amount-input input {
+  padding-left: 24px; /* space for $ */
 }
 
 .btn-add {
