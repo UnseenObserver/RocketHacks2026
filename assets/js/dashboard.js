@@ -1,4 +1,5 @@
 import { auth, db } from './firebase-config.js';
+import { listFamilyMembers } from './family.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
 import {
   addDoc,
@@ -47,7 +48,16 @@ const elements = {
   settingsAvatarImage: document.getElementById('settings-avatar-image'),
   settingsAvatarFallback: document.getElementById('settings-avatar-fallback'),
   sidebarAvatarImage: document.getElementById('sidebar-avatar-image'),
-  sidebarAvatarFallback: document.getElementById('sidebar-avatar-fallback')
+  sidebarAvatarFallback: document.getElementById('sidebar-avatar-fallback'),
+  parentPortalTab: document.querySelector('[data-tab="parent-portal"]'),
+  parentPortalPanel: document.querySelector('[data-panel="parent-portal"]'),
+  parentPortalCopy: document.getElementById('parent-portal-copy'),
+  parentChildFilter: document.getElementById('parent-child-filter'),
+  portalChildCount: document.getElementById('portal-child-count'),
+  portalTotalBalance: document.getElementById('portal-total-balance'),
+  portalTotalSpending: document.getElementById('portal-total-spending'),
+  parentChildCards: document.getElementById('parent-child-cards'),
+  parentRecentActivity: document.getElementById('parent-recent-activity')
 };
 
 let transactions = [];
@@ -80,6 +90,17 @@ const DEFAULT_SPLIT_RATIOS = {
   ]
 };
 let splitRatios = DEFAULT_SPLIT_RATIOS;
+let currentUserProfile = null;
+let parentPortalChildren = [];
+
+const PRESET_AVATAR_SOURCES = {
+  astronaut: 'assets/images/avatars/avatar-1.svg',
+  'blue-cap': 'assets/images/avatars/avatar-2.svg',
+  'green-hoodie': 'assets/images/avatars/avatar-3.svg',
+  'star-glasses': 'assets/images/avatars/avatar-4.svg',
+  'orange-playful': 'assets/images/avatars/avatar-5.svg',
+  superhero: 'assets/images/avatars/avatar-6.svg'
+};
 
 function asNumber(value) {
   const parsed = Number(value);
@@ -1161,6 +1182,26 @@ function getDefaultProfilePhotoUrl() {
   return 'assets/images/default-profile.svg';
 }
 
+function getPresetAvatarSource(avatarName = '') {
+  const normalizedName = String(avatarName || '').trim();
+  return PRESET_AVATAR_SOURCES[normalizedName] || '';
+}
+
+function resolveProfilePhotoSource(photoURL = '', photoAvatarName = '') {
+  const presetSource = getPresetAvatarSource(photoAvatarName);
+
+  if (presetSource) {
+    return presetSource;
+  }
+
+  const trimmedPhotoUrl = String(photoURL || '').trim();
+  if (trimmedPhotoUrl) {
+    return trimmedPhotoUrl;
+  }
+
+  return '';
+}
+
 function getLocalProfilePhotoKey(userId) {
   return `mf_profile_photo_${userId}`;
 }
@@ -1173,8 +1214,8 @@ function getLocalProfilePhoto(userId) {
   return localStorage.getItem(getLocalProfilePhotoKey(userId)) || '';
 }
 
-function updateAvatarUI(photoURL) {
-  const imageUrl = typeof photoURL === 'string' && photoURL.trim() ? photoURL.trim() : '';
+function updateAvatarUI(photoURL, photoAvatarName = '') {
+  const imageUrl = resolveProfilePhotoSource(photoURL, photoAvatarName);
 
   [
     {
@@ -1206,10 +1247,268 @@ function updateAvatarUI(photoURL) {
   });
 }
 
+function setParentPortalVisibility(show) {
+  if (elements.parentPortalTab) {
+    elements.parentPortalTab.hidden = !show;
+  }
+
+  if (!show && document.querySelector('.tab.active')?.dataset.tab === 'parent-portal') {
+    setActiveTab('dashboard', { skipAnimation: true });
+  }
+}
+
+function getCurrentMonthExpenseTotal(transactionsList) {
+  const now = new Date();
+
+  return transactionsList
+    .filter((transaction) => transaction.type === 'expense')
+    .filter((transaction) => {
+      const createdAt = transaction.createdAtDate;
+      return createdAt
+        && createdAt.getMonth() === now.getMonth()
+        && createdAt.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+}
+
+function normalizeSnapshotDate(timestampValue) {
+  if (!timestampValue) {
+    return null;
+  }
+
+  if (typeof timestampValue.toDate === 'function') {
+    return timestampValue.toDate();
+  }
+
+  const parsedDate = new Date(timestampValue);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+async function loadParentPortalChildren(profile) {
+  parentPortalChildren = [];
+
+  if (profile?.role !== 'parent') {
+    renderParentPortal();
+    return;
+  }
+
+  try {
+    const currentParentUid = currentUser?.uid;
+
+    if (!currentParentUid) {
+      renderParentPortal();
+      return;
+    }
+
+    const ownMembers = await listFamilyMembers(currentParentUid);
+    const linkedParentUids = ownMembers
+      .filter((member) => member.role === 'parent' && member.status === 'active' && member.uid !== currentParentUid)
+      .map((member) => member.uid);
+
+    const linkedParentMembers = await Promise.all(linkedParentUids.map((uid) => listFamilyMembers(uid)));
+
+    const childMembers = [
+      ...ownMembers,
+      ...linkedParentMembers.flat()
+    ].filter((member) => member.role === 'child' && member.status === 'active');
+
+    const uniqueChildMembers = Array.from(new Map(childMembers.map((member) => [member.uid, member])).values());
+
+    parentPortalChildren = await Promise.all(uniqueChildMembers.map(async (member) => {
+      const [userSnapshot, transactionsSnapshot, goalsSnapshot] = await Promise.all([
+        getDoc(doc(db, 'users', member.uid)),
+        getDocs(collection(db, 'users', member.uid, 'transactions')),
+        getDocs(collection(db, 'users', member.uid, 'savingsGoals'))
+      ]);
+
+      const userData = userSnapshot.exists() ? userSnapshot.data() : {};
+      const permissions = member.permissions || {};
+      const transactionsList = permissions.canViewTransactions || permissions.canViewDashboardSummary
+        ? transactionsSnapshot.docs.map((entry) => {
+          const data = entry.data();
+          return {
+            id: entry.id,
+            description: data.description || 'Untitled',
+            category: data.category || 'General',
+            type: data.type === 'income' ? 'income' : 'expense',
+            amount: Number(data.amount) || 0,
+            createdAtDate: normalizeSnapshotDate(data.createdAt)
+          };
+        })
+        : [];
+
+      const goalsList = permissions.canViewGoals
+        ? goalsSnapshot.docs.map((entry) => entry.data())
+        : [];
+
+      const income = transactionsList
+        .filter((transaction) => transaction.type === 'income')
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+      const expense = transactionsList
+        .filter((transaction) => transaction.type === 'expense')
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+      return {
+        uid: member.uid,
+        displayName: member.displayName || userData.firstName || member.email || 'Child Account',
+        email: member.email || userData.email || 'No email',
+        photoURL: String(userData.photoURL || '').trim(),
+        photoAvatarName: String(userData.photoAvatarName || '').trim(),
+        permissions,
+        balance: income - expense,
+        monthlySpending: getCurrentMonthExpenseTotal(transactionsList),
+        goalCount: goalsList.length,
+        transactions: transactionsList
+          .sort((left, right) => (right.createdAtDate?.getTime() || 0) - (left.createdAtDate?.getTime() || 0))
+          .slice(0, 5)
+      };
+    }));
+  } catch (error) {
+    console.error('Failed to load parent portal data:', error);
+    setPageMessage('Could not load parent portal data right now.', 'error');
+  }
+
+  renderParentPortal();
+}
+
+function getFilteredParentPortalChildren() {
+  const selectedUid = elements.parentChildFilter?.value || 'all';
+
+  if (selectedUid === 'all') {
+    return parentPortalChildren;
+  }
+
+  return parentPortalChildren.filter((child) => child.uid === selectedUid);
+}
+
+function renderParentPortal() {
+  if (!elements.parentPortalTab || !elements.parentPortalPanel) {
+    return;
+  }
+
+  const children = parentPortalChildren;
+  const filteredChildren = getFilteredParentPortalChildren();
+
+  if (elements.parentChildFilter) {
+    const currentValue = elements.parentChildFilter.value || 'all';
+    elements.parentChildFilter.innerHTML = '<option value="all">All linked children</option>' + children.map((child) => (
+      `<option value="${child.uid}">${escapeHtml(child.displayName)}</option>`
+    )).join('');
+
+    if ([...elements.parentChildFilter.options].some((option) => option.value === currentValue)) {
+      elements.parentChildFilter.value = currentValue;
+    }
+  }
+
+  elements.portalChildCount.textContent = String(children.length);
+  elements.portalTotalBalance.textContent = formatCurrency(filteredChildren.reduce((sum, child) => sum + child.balance, 0));
+  elements.portalTotalSpending.textContent = formatCurrency(filteredChildren.reduce((sum, child) => sum + child.monthlySpending, 0));
+
+  if (children.length === 0) {
+    elements.parentPortalCopy.textContent = 'No linked children yet. Add them from Account settings using your invite code.';
+    elements.parentChildCards.innerHTML = '<li class="empty-state">No linked children yet.</li>';
+    elements.parentRecentActivity.innerHTML = '<li class="empty-state">No child activity to display yet.</li>';
+    return;
+  }
+
+  elements.parentPortalCopy.textContent = 'Monitor linked child accounts, recent activity, and savings progress.';
+
+  elements.parentChildCards.innerHTML = filteredChildren.map((child) => `
+    <li class="family-member-card compact-family-member-card">
+      <div class="family-member-header">
+        <div class="parent-child-avatar-wrap" aria-hidden="true">
+              ${resolveProfilePhotoSource(child.photoURL, child.photoAvatarName)
+            ? `<img class="parent-child-avatar" src="${escapeHtml(resolveProfilePhotoSource(child.photoURL, child.photoAvatarName))}" alt="" />`
+    : '<span class="parent-child-avatar-fallback">👤</span>'}
+        </div>
+        <div>
+          <strong>${escapeHtml(child.displayName)}</strong>
+          <p>${escapeHtml(child.email)}</p>
+        </div>
+      </div>
+      <div class="parent-child-metrics">
+        <span>Balance <strong>${formatCurrency(child.balance)}</strong></span>
+        <span>Monthly Spending <strong>${formatCurrency(child.monthlySpending)}</strong></span>
+        <span>Goals <strong>${child.goalCount}</strong></span>
+      </div>
+      <div class="profile-photo-actions">
+        <button type="button" class="btn-secondary" data-parent-action="add-child-goal" data-child-uid="${escapeHtml(child.uid)}" data-child-name="${escapeHtml(child.displayName)}">Add Savings Goal</button>
+      </div>
+    </li>
+  `).join('');
+
+  const recentActivity = filteredChildren
+    .flatMap((child) => child.transactions.map((transaction) => ({
+      childName: child.displayName,
+      ...transaction
+    })))
+    .sort((left, right) => (right.createdAtDate?.getTime() || 0) - (left.createdAtDate?.getTime() || 0))
+    .slice(0, 8);
+
+  elements.parentRecentActivity.innerHTML = recentActivity.length === 0
+    ? '<li class="empty-state">No child activity to display yet.</li>'
+    : recentActivity.map((transaction) => `
+      <li>
+        <strong>${escapeHtml(transaction.childName)}</strong>: ${escapeHtml(transaction.description)}
+        <span class="breakdown-amount">${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(transaction.amount)}</span>
+      </li>
+    `).join('');
+}
+
+async function handleParentPortalAction(event) {
+  const actionButton = event.target.closest('[data-parent-action="add-child-goal"]');
+
+  if (!actionButton || !currentUser || currentUserProfile?.role !== 'parent') {
+    return;
+  }
+
+  const childUid = actionButton.dataset.childUid;
+  const childName = actionButton.dataset.childName || 'this child';
+
+  if (!childUid) {
+    return;
+  }
+
+  const goalName = window.prompt(`Enter a savings goal name for ${childName}:`);
+
+  if (!goalName || !goalName.trim()) {
+    return;
+  }
+
+  const amountRaw = window.prompt('Enter target amount (numbers only):');
+  const amount = Number(amountRaw);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setPageMessage('Please enter a valid target amount greater than 0.', 'error');
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, 'users', childUid, 'savingsGoals'), {
+      name: goalName.trim(),
+      amount: Math.round(amount * 100) / 100,
+      saved: 0,
+      createdByParentUid: currentUser.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    setPageMessage(`Savings goal added for ${childName}.`, 'success');
+    await loadParentPortalChildren(currentUserProfile);
+  } catch (error) {
+    console.error('Failed to add child savings goal:', error);
+    setPageMessage('Could not add savings goal for that child right now.', 'error');
+  }
+}
+
 async function resolveUserProfile(user) {
   const profile = {
     firstName: (user.displayName || '').trim().split(' ')[0],
-    photoURL: user.photoURL || ''
+    photoURL: user.photoURL || '',
+    photoAvatarName: '',
+    role: 'solo',
+    primaryFamilyId: null,
+    needsRoleMigrationPrompt: false
   };
 
   try {
@@ -1217,8 +1516,12 @@ async function resolveUserProfile(user) {
 
     if (userProfile.exists()) {
       const data = userProfile.data() || {};
+      const hasRoleField = Object.prototype.hasOwnProperty.call(data, 'role');
       const firstName = String(data.firstName || '').trim();
       const photoURL = String(data.photoURL || '').trim();
+      const photoAvatarName = String(data.photoAvatarName || '').trim();
+      const role = String(data.role || 'solo').trim() || 'solo';
+      const primaryFamilyId = String(data.primaryFamilyId || '').trim() || (role === 'parent' ? user.uid : null);
 
       if (firstName) {
         profile.firstName = firstName;
@@ -1227,6 +1530,14 @@ async function resolveUserProfile(user) {
       if (photoURL) {
         profile.photoURL = photoURL;
       }
+
+      if (photoAvatarName) {
+        profile.photoAvatarName = photoAvatarName;
+      }
+
+      profile.role = role;
+      profile.primaryFamilyId = primaryFamilyId;
+      profile.needsRoleMigrationPrompt = !hasRoleField;
     }
   } catch (error) {
     console.warn('Could not load user profile:', error);
@@ -1238,6 +1549,46 @@ async function resolveUserProfile(user) {
   }
 
   return profile;
+}
+
+async function applyLegacyRoleMigration(user, profile) {
+  if (!profile?.needsRoleMigrationPrompt) {
+    return profile;
+  }
+
+  try {
+    await setDoc(doc(db, 'users', user.uid), {
+      role: 'solo',
+      primaryFamilyId: null,
+      rolePromptedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    const migratedProfile = {
+      ...profile,
+      role: 'solo',
+      primaryFamilyId: null,
+      needsRoleMigrationPrompt: false
+    };
+
+    const wantsRoleSetup = window.confirm(
+      'Your account was upgraded and set to Individual. Are you a Parent Portal or Child account? Click OK to open Account settings and update your role.'
+    );
+
+    if (wantsRoleSetup) {
+      setPageMessage('Open Account settings to switch your role and family setup.', 'success');
+      setTimeout(() => {
+        openSubPage('account.html', 'Account');
+      }, 0);
+    } else {
+      setPageMessage('Account role set to Individual. You can update this later in Account settings.', 'success');
+    }
+
+    return migratedProfile;
+  } catch (error) {
+    console.error('Failed to migrate legacy account role:', error);
+    return profile;
+  }
 }
 
 async function resolveUserFirstName(user) {
@@ -1280,6 +1631,10 @@ async function handleAuthStateChanged(user) {
     }
 
     goals = [];
+    parentPortalChildren = [];
+    currentUserProfile = null;
+    setParentPortalVisibility(false);
+    renderParentPortal();
     lastPersistedSavingsAllocations = {};
     renderGoals();
 
@@ -1289,7 +1644,9 @@ async function handleAuthStateChanged(user) {
 
   currentUser = user;
 
-  const profile = await resolveUserProfile(user);
+  let profile = await resolveUserProfile(user);
+  profile = await applyLegacyRoleMigration(user, profile);
+  currentUserProfile = profile;
   const firstName = profile.firstName;
 
   if (elements.headerGreeting) {
@@ -1305,7 +1662,12 @@ async function handleAuthStateChanged(user) {
   }
 
   const localPhotoDataUrl = getLocalProfilePhoto(user.uid);
-  updateAvatarUI(localPhotoDataUrl || profile.photoURL);
+  updateAvatarUI(localPhotoDataUrl || profile.photoURL, profile.photoAvatarName);
+  setParentPortalVisibility(profile.role === 'parent');
+  await loadParentPortalChildren({
+    role: profile.role,
+    primaryFamilyId: profile.primaryFamilyId
+  });
 
   if (elements.logoutButton) {
     elements.logoutButton.hidden = false;
@@ -1330,7 +1692,7 @@ function setupProfilePhotoSyncListeners() {
         return;
       }
 
-      updateAvatarUI(data.localPhotoDataUrl || data.photoURL || '');
+      updateAvatarUI(data.localPhotoDataUrl || data.photoURL || '', data.photoAvatarName || '');
     } catch {
       // no-op
     }
@@ -1346,7 +1708,7 @@ function setupProfilePhotoSyncListeners() {
         return;
       }
 
-      updateAvatarUI(event.data.localPhotoDataUrl || event.data.photoURL || '');
+      updateAvatarUI(event.data.localPhotoDataUrl || event.data.photoURL || '', event.data.photoAvatarName || '');
     }
   });
 }
@@ -1376,6 +1738,14 @@ function setupListeners() {
   elements.tabs.forEach((tab) => {
     tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
   });
+
+  if (elements.parentChildFilter) {
+    elements.parentChildFilter.addEventListener('change', renderParentPortal);
+  }
+
+  if (elements.parentChildCards) {
+    elements.parentChildCards.addEventListener('click', handleParentPortalAction);
+  }
 
   elements.form.addEventListener('submit', handleTransactionSubmit);
   elements.list.addEventListener('click', async (event) => {

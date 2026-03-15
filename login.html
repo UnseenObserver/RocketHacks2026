@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <script>(function(){try{var v=JSON.parse(localStorage.getItem('mf_theme_vars')||'null');if(v){var r=document.documentElement;for(var k in v)r.style.setProperty(k,v[k]);}}catch(e){}})();</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="832625214817-1ud18uo86tln9vpqedc2p44cvgkj0s7t.apps.googleusercontent.com" content="" />
   <title>MoneyFirst | Login</title>
   <link href="https://fonts.googleapis.com/css2?family=Margarine&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body class="auth-page">
   <main class="auth-shell auth-shell-single">
@@ -41,6 +43,14 @@
           </div>
           <div class="auth-message" aria-live="polite"></div>
           <button type="submit" class="btn-add auth-submit">Login</button>
+          <div class="auth-divider"><span>or</span></div>
+          <div class="gis-button-wrap" id="google-gis-login-wrap">
+            <div id="google-gis-login-button"></div>
+          </div>
+          <button type="button" class="auth-social-button" id="google-popup-fallback-btn" data-auth-provider="google" data-mode="login" hidden>
+            <span class="auth-social-icon" aria-hidden="true">G</span>
+            <span>Continue with Google (Popup)</span>
+          </button>
         </form>
       </div>
 
@@ -48,6 +58,28 @@
         <h2>Create account</h2>
         <p class="auth-copy">Set up your profile and start tracking today.</p>
         <form class="auth-form" data-mode="signup">
+          <div class="form-group">
+            <label for="signup-role">Account type</label>
+            <select id="signup-role" required>
+              <option value="solo">Individual</option>
+              <option value="parent">Parent Portal</option>
+              <option value="child">Child Account</option>
+            </select>
+            <p class="auth-field-copy" id="signup-role-copy">Individual accounts keep the current personal budgeting flow.</p>
+          </div>
+
+          <div class="form-group auth-conditional-field" id="family-name-group" hidden>
+            <label for="family-name">Family name</label>
+            <input type="text" id="family-name" placeholder="The Taylor Family" />
+            <p class="auth-field-copy">Parents create the family space and share an invite code with children.</p>
+          </div>
+
+          <div class="form-group auth-conditional-field" id="invite-code-group" hidden>
+            <label for="family-invite-code">Family invite code</label>
+            <input type="text" id="family-invite-code" placeholder="ABC123" maxlength="8" />
+            <p class="auth-field-copy">Children need a valid invite code from a parent portal account.</p>
+          </div>
+
           <div class="auth-grid">
             <div class="form-group">
               <label for="first-name">First name</label>
@@ -82,6 +114,11 @@
           </label>
           <div class="auth-message" aria-live="polite"></div>
           <button type="submit" class="btn-add auth-submit">Create Account</button>
+          <div class="auth-divider"><span>or</span></div>
+          <button type="button" class="auth-social-button" data-auth-provider="google" data-mode="signup">
+            <span class="auth-social-icon" aria-hidden="true">G</span>
+            <span>Sign up with Google</span>
+          </button>
         </form>
       </div>
     </section>

@@ -48,6 +48,7 @@
       <nav class="tabs" role="tablist">
         <button class="tab active" data-tab="dashboard" role="tab" aria-selected="true">Dashboard</button>
         <button class="tab" data-tab="history" role="tab" aria-selected="false">History</button>
+        <button class="tab" data-tab="parent-portal" role="tab" aria-selected="false" hidden>Parent Portal</button>
       </nav>
     </div>
 
@@ -206,6 +207,59 @@
         <ul id="transaction-list">
           <li class="empty-state">No transactions yet. Add one above!</li>
         </ul>
+      </section>
+    </div>
+
+    <!-- Parent Portal Tab -->
+    <div class="tab-panel" data-panel="parent-portal" hidden>
+      <section class="parent-portal-section">
+        <div class="parent-portal-header">
+          <div>
+            <h2>Parent Portal</h2>
+            <p class="account-section-description" id="parent-portal-copy">Monitor linked child accounts, recent activity, and savings progress.</p>
+          </div>
+          <div class="form-group parent-portal-filter">
+            <label for="parent-child-filter">Viewing</label>
+            <select id="parent-child-filter">
+              <option value="all">All linked children</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="parent-portal-summary" id="parent-portal-summary">
+          <div class="family-summary-card">
+            <span class="family-summary-label">Linked Children</span>
+            <strong id="portal-child-count">0</strong>
+          </div>
+          <div class="family-summary-card">
+            <span class="family-summary-label">Combined Balance</span>
+            <strong id="portal-total-balance">$0.00</strong>
+          </div>
+          <div class="family-summary-card">
+            <span class="family-summary-label">Monthly Spending</span>
+            <strong id="portal-total-spending">$0.00</strong>
+          </div>
+        </div>
+
+        <div class="parent-portal-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-label">Child Snapshots</span>
+            </div>
+            <ul class="family-members-list" id="parent-child-cards">
+              <li class="empty-state">No linked children yet.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-label">Recent Activity</span>
+            </div>
+            <ul class="goals-list" id="parent-recent-activity">
+              <li class="empty-state">No child activity to display yet.</li>
+            </ul>
+          </div>
+        </div>
       </section>
     </div>
 

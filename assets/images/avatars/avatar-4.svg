@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Purple star glasses kid avatar">
+  <rect width="128" height="128" rx="28" fill="#ede9fe"/>
+  <circle cx="64" cy="63" r="36" fill="#ffd9bd"/>
+  <path d="M34 48c7-12 18-18 30-18s23 6 30 18" fill="#7c3aed"/>
+  <path d="M43 63l6-4 6 4-2 7h-8z" fill="#fde68a"/>
+  <path d="M73 63l6-4 6 4-2 7h-8z" fill="#fde68a"/>
+  <rect x="55" y="62" width="18" height="2.8" rx="1.4" fill="#f59e0b"/>
+  <path d="M53 81c4 4 18 4 22 0" stroke="#ec4899" stroke-width="4" stroke-linecap="round" fill="none"/>
+</svg>

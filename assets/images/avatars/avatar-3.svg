@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Green hoodie kid avatar">
+  <rect width="128" height="128" rx="28" fill="#dcfce7"/>
+  <path d="M18 116c4-30 20-46 46-46s42 16 46 46" fill="#22c55e"/>
+  <circle cx="64" cy="56" r="30" fill="#ffe6c9"/>
+  <path d="M40 47c5-8 14-12 24-12s19 4 24 12" fill="#16a34a"/>
+  <circle cx="53" cy="56" r="3.8" fill="#1f2937"/>
+  <circle cx="75" cy="56" r="3.8" fill="#1f2937"/>
+  <path d="M54 69c3 4 17 4 20 0" stroke="#ef4444" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+</svg>

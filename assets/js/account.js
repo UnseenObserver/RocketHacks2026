@@ -1,11 +1,23 @@
 import { auth, db } from './firebase-config.js';
 import {
+  buildDisplayName,
+  findFamilyByInviteCode,
+  generateInviteCode,
+  getDefaultMemberPermissions,
+  getFamilyById,
+  getRoleLabel,
+  listFamilyMembers,
+  normalizeInviteCode
+} from './family.js';
+import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   updateEmail,
   updateProfile
 } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
 import {
+  deleteDoc,
+  setDoc,
   doc,
   getDoc,
   serverTimestamp,
@@ -20,8 +32,32 @@ const elements = {
   emailInput: document.getElementById('email'),
   saveButton: document.getElementById('save-btn'),
   resetPasswordButton: document.getElementById('reset-password-btn'),
+  roleBadge: document.getElementById('account-role-badge'),
   pageMessage: document.getElementById('page-message'),
   accountMessage: document.getElementById('account-message'),
+  familySectionCopy: document.getElementById('family-section-copy'),
+  familyMessage: document.getElementById('family-message'),
+  roleSwitchRow: document.getElementById('role-switch-row'),
+  roleSwitchToggleButton: document.getElementById('role-switch-toggle'),
+  roleSwitchPanel: document.getElementById('role-switch-panel'),
+  roleSwitchSelect: document.getElementById('role-switch-select'),
+  roleSwitchVerifyInput: document.getElementById('role-switch-verify-input'),
+  roleSwitchCancelButton: document.getElementById('role-switch-cancel'),
+  roleSwitchApplyButton: document.getElementById('role-switch-apply'),
+  parentFamilyPanel: document.getElementById('parent-family-panel'),
+  childFamilyPanel: document.getElementById('child-family-panel'),
+  soloFamilyPanel: document.getElementById('solo-family-panel'),
+  familyNameDisplay: document.getElementById('family-name-display'),
+  familyInviteDisplay: document.getElementById('family-invite-display'),
+  copyInviteButton: document.getElementById('copy-invite-btn'),
+  regenerateInviteButton: document.getElementById('regenerate-invite-btn'),
+  joinParentCodeInput: document.getElementById('join-parent-code'),
+  joinParentButton: document.getElementById('join-parent-btn'),
+  familyParentsList: document.getElementById('family-parents-list'),
+  familyChildrenList: document.getElementById('family-children-list'),
+  childFamilyName: document.getElementById('child-family-name'),
+  childFamilyStatus: document.getElementById('child-family-status'),
+  childFamilyCopy: document.getElementById('child-family-copy'),
   profileSection: document.querySelector('.profile-section'),
   openPhotoModalButton: document.getElementById('open-photo-modal'),
   profilePhotoPreview: document.getElementById('profile-photo-preview'),
@@ -31,6 +67,8 @@ const elements = {
   profilePhotoCropper: document.getElementById('profile-photo-cropper'),
   profilePhotoCanvas: document.getElementById('profile-photo-canvas'),
   profilePhotoControls: document.getElementById('profile-photo-controls'),
+  profileAvatarPicker: document.getElementById('profile-avatar-picker'),
+  profileAvatarOptions: document.querySelectorAll('.profile-avatar-option'),
   profilePhotoZoomInput: document.getElementById('profile-photo-zoom'),
   profilePhotoOffsetXInput: document.getElementById('profile-photo-offset-x'),
   profilePhotoOffsetYInput: document.getElementById('profile-photo-offset-y'),
@@ -39,11 +77,25 @@ const elements = {
 };
 
 let currentUser = null;
+let currentUserProfile = null;
+let currentFamily = null;
+let currentFamilyMembers = [];
 let accountMessageTimeoutId = null;
+let familyMessageTimeoutId = null;
 let photoSourceImage = null;
 let pendingProfilePhotoDataUrl = '';
+let pendingProfileAvatarName = '';
 let pendingProfilePhotoObjectUrl = '';
 let hasUnappliedCrop = false;
+
+const PRESET_AVATAR_SOURCES = {
+  astronaut: 'assets/images/avatars/avatar-1.svg',
+  'blue-cap': 'assets/images/avatars/avatar-2.svg',
+  'green-hoodie': 'assets/images/avatars/avatar-3.svg',
+  'star-glasses': 'assets/images/avatars/avatar-4.svg',
+  'orange-playful': 'assets/images/avatars/avatar-5.svg',
+  superhero: 'assets/images/avatars/avatar-6.svg'
+};
 
 const PROFILE_PHOTO_SIZE = 192;
 const PROFILE_PHOTO_JPEG_QUALITY = 0.78;
@@ -56,6 +108,11 @@ const cropState = {
 
 function getDefaultProfilePhotoUrl() {
   return 'assets/images/default-profile.svg';
+}
+
+function getPresetAvatarSource(avatarName = '') {
+  const normalizedName = String(avatarName || '').trim();
+  return PRESET_AVATAR_SOURCES[normalizedName] || '';
 }
 
 function getLocalProfilePhotoKey(userId) {
@@ -83,12 +140,54 @@ function saveLocalProfilePhoto(userId, dataUrl) {
   localStorage.setItem(getLocalProfilePhotoKey(userId), dataUrl);
 }
 
-function setProfilePhotoPreview(photoURL) {
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function setActiveAvatarOption(selectedAvatarName = '') {
+  if (!elements.profileAvatarOptions || elements.profileAvatarOptions.length === 0) {
+    return;
+  }
+
+  const normalizedSelected = String(selectedAvatarName || '').trim();
+
+  elements.profileAvatarOptions.forEach((button) => {
+    const optionName = String(button.dataset.avatarName || '').trim();
+    const isActive = Boolean(normalizedSelected) && optionName === normalizedSelected;
+
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+}
+
+function resolveProfilePhotoSource(photoURL = '', photoAvatarName = '') {
+  const presetSource = getPresetAvatarSource(photoAvatarName);
+
+  if (presetSource) {
+    return presetSource;
+  }
+
+  const trimmedPhotoUrl = String(photoURL || '').trim();
+  if (trimmedPhotoUrl) {
+    return trimmedPhotoUrl;
+  }
+
+  return '';
+}
+
+function setProfilePhotoPreview(photoURL, photoAvatarName = '') {
   if (!elements.profilePhotoPreview) {
     return;
   }
 
-  elements.profilePhotoPreview.src = photoURL || getDefaultProfilePhotoUrl();
+  const resolvedSource = resolveProfilePhotoSource(photoURL, photoAvatarName);
+  elements.profilePhotoPreview.src = resolvedSource || getDefaultProfilePhotoUrl();
+  setActiveAvatarOption(photoAvatarName || '');
 }
 
 function setPhotoModalCopy(text) {
@@ -97,6 +196,513 @@ function setPhotoModalCopy(text) {
   }
 
   elements.profilePhotoModalCopy.textContent = text;
+}
+
+function setRoleBadge(role = 'solo') {
+  if (!elements.roleBadge) {
+    return;
+  }
+
+  elements.roleBadge.textContent = getRoleLabel(role);
+  elements.roleBadge.className = `role-badge role-badge-${role}`;
+}
+
+function setFamilyMessage(text = '', type = '') {
+  const el = elements.familyMessage;
+
+  if (!el) {
+    return;
+  }
+
+  if (familyMessageTimeoutId) {
+    clearTimeout(familyMessageTimeoutId);
+    familyMessageTimeoutId = null;
+  }
+
+  el.textContent = text;
+  el.className = 'page-message family-inline-message';
+
+  if (type) {
+    el.classList.add(type);
+  }
+
+  if (text) {
+    familyMessageTimeoutId = setTimeout(() => {
+      el.textContent = '';
+      el.className = 'page-message family-inline-message';
+      familyMessageTimeoutId = null;
+    }, 3500);
+  }
+}
+
+function setFamilySectionMode(role = 'solo') {
+  elements.parentFamilyPanel.hidden = role !== 'parent';
+  elements.childFamilyPanel.hidden = role !== 'child';
+  elements.soloFamilyPanel.hidden = role !== 'solo';
+}
+
+function setRoleSwitchPanelOpen(show) {
+  if (!elements.roleSwitchPanel || !elements.roleSwitchToggleButton) {
+    return;
+  }
+
+  elements.roleSwitchPanel.hidden = !show;
+  elements.roleSwitchToggleButton.setAttribute('aria-expanded', show ? 'true' : 'false');
+
+  if (show) {
+    elements.roleSwitchVerifyInput.value = '';
+    elements.roleSwitchVerifyInput.focus();
+  }
+}
+
+function renderRoleSwitchControl(role = 'solo') {
+  const canShow = role === 'solo' || role === 'parent';
+
+  if (elements.roleSwitchRow) {
+    elements.roleSwitchRow.hidden = !canShow;
+  }
+
+  if (!canShow) {
+    setRoleSwitchPanelOpen(false);
+    return;
+  }
+
+  if (elements.roleSwitchSelect) {
+    if (role === 'parent') {
+      elements.roleSwitchSelect.value = 'parent';
+    } else if (role === 'child') {
+      elements.roleSwitchSelect.value = 'child';
+    }
+  }
+}
+
+function renderParentFamilyPanel() {
+  const familyName = currentFamily?.name || buildDisplayName(currentUserProfile?.firstName, currentUserProfile?.lastName) || 'Parent Account';
+  const inviteCode = currentFamily?.inviteCode || '------';
+  const linkedParents = currentFamilyMembers.filter((member) => member.role === 'parent' && member.uid !== currentUser?.uid && member.status === 'active');
+  const childMembers = currentFamilyMembers.filter((member) => member.role === 'child' && member.status === 'active');
+
+  elements.familySectionCopy.textContent = 'Manage your invite code, linked adults, linked children, and parent portal permissions.';
+  elements.familyNameDisplay.textContent = familyName;
+  elements.familyInviteDisplay.textContent = inviteCode;
+
+  if (linkedParents.length === 0) {
+    elements.familyParentsList.innerHTML = '<li class="empty-state">No linked parents yet.</li>';
+  } else {
+    elements.familyParentsList.innerHTML = linkedParents.map((member) => {
+      const safeName = escapeHtml(member.displayName || member.email || 'Parent Account');
+      const safeEmail = escapeHtml(member.email || 'No email available');
+
+      return `
+        <li class="family-member-card compact-family-member-card">
+          <div class="family-member-header">
+            <div>
+              <strong>${safeName}</strong>
+              <p>${safeEmail}</p>
+            </div>
+          </div>
+        </li>
+      `;
+    }).join('');
+  }
+
+  if (childMembers.length === 0) {
+    elements.familyChildrenList.innerHTML = '<li class="empty-state">No children linked yet. Share your invite code to connect one.</li>';
+    return;
+  }
+
+  elements.familyChildrenList.innerHTML = childMembers.map((member) => {
+    const permissions = member.permissions || {};
+    const safeName = escapeHtml(member.displayName || member.email || 'Child Account');
+    const safeEmail = escapeHtml(member.email || 'No email available');
+
+    return `
+      <li class="family-member-card">
+        <div class="family-member-header">
+          <div>
+            <strong>${safeName}</strong>
+            <p>${safeEmail}</p>
+          </div>
+          <button type="button" class="btn-delete" data-family-action="remove-child" data-member-id="${member.uid}">Remove</button>
+        </div>
+        <div class="family-permissions-grid">
+          <label class="family-permission-toggle">
+            <input type="checkbox" data-family-action="toggle-permission" data-member-id="${member.uid}" data-permission="canViewDashboardSummary" ${permissions.canViewDashboardSummary ? 'checked' : ''} />
+            <span>Summary</span>
+          </label>
+          <label class="family-permission-toggle">
+            <input type="checkbox" data-family-action="toggle-permission" data-member-id="${member.uid}" data-permission="canViewTransactions" ${permissions.canViewTransactions ? 'checked' : ''} />
+            <span>Transactions</span>
+          </label>
+          <label class="family-permission-toggle">
+            <input type="checkbox" data-family-action="toggle-permission" data-member-id="${member.uid}" data-permission="canViewGoals" ${permissions.canViewGoals ? 'checked' : ''} />
+            <span>Goals</span>
+          </label>
+          <label class="family-permission-toggle">
+            <input type="checkbox" data-family-action="toggle-permission" data-member-id="${member.uid}" data-permission="canViewSplitRatios" ${permissions.canViewSplitRatios ? 'checked' : ''} />
+            <span>Split Ratios</span>
+          </label>
+        </div>
+      </li>
+    `;
+  }).join('');
+}
+
+function renderChildFamilyPanel() {
+  const familyName = currentFamily?.name || 'Not linked';
+  const parentMember = currentFamily;
+
+  elements.familySectionCopy.textContent = 'This child account is linked to a family portal and can be monitored by a parent.';
+  elements.childFamilyName.textContent = familyName;
+  elements.childFamilyStatus.textContent = currentFamily ? 'Connected' : 'Not connected';
+  elements.childFamilyCopy.textContent = parentMember
+    ? `Connected to ${parentMember.displayName || parentMember.email}.`
+    : 'Connected to a family portal.';
+}
+
+function renderSoloFamilyPanel() {
+  elements.familySectionCopy.textContent = 'Individual accounts are private by default and are not linked to a parent portal.';
+}
+
+function renderFamilySection() {
+  const role = currentUserProfile?.role || 'solo';
+
+  setRoleBadge(role);
+  setFamilySectionMode(role);
+  renderRoleSwitchControl(role);
+
+  if (role === 'parent') {
+    renderParentFamilyPanel();
+    return;
+  }
+
+  if (role === 'child') {
+    renderChildFamilyPanel();
+    return;
+  }
+
+  renderSoloFamilyPanel();
+}
+
+async function createUniqueInviteCode() {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const nextCode = generateInviteCode(6);
+    const existingFamily = await findFamilyByInviteCode(nextCode);
+
+    if (!existingFamily) {
+      return nextCode;
+    }
+  }
+
+  throw new Error('Could not generate a unique invite code right now.');
+}
+
+async function loadFamilySettings(profile) {
+  currentFamily = null;
+  currentFamilyMembers = [];
+
+  const role = profile?.role || 'solo';
+
+  if (role === 'parent') {
+    const parentUid = profile?.primaryFamilyId || currentUser?.uid;
+
+    if (!parentUid) {
+      renderFamilySection();
+      return;
+    }
+
+    try {
+      currentFamily = await getFamilyById(parentUid);
+      currentFamilyMembers = await listFamilyMembers(parentUid);
+
+      if (!currentFamilyMembers.some((member) => member.uid === parentUid && member.role === 'parent')) {
+        await setDoc(doc(db, 'users', parentUid, 'familyMembers', parentUid), {
+          uid: parentUid,
+          role: 'parent',
+          status: 'active',
+          displayName: buildDisplayName(profile.firstName, profile.lastName) || profile.username || profile.email || 'Parent',
+          email: profile.email || '',
+          joinedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        currentFamilyMembers = await listFamilyMembers(parentUid);
+      }
+    } catch (error) {
+      console.error('Failed to load parent family settings:', error);
+      setFamilyMessage('Could not load parent family settings right now.', 'error');
+    }
+
+    renderFamilySection();
+    return;
+  }
+
+  if (!profile?.primaryFamilyId) {
+    renderFamilySection();
+    return;
+  }
+
+  try {
+    currentFamily = await getFamilyById(profile.primaryFamilyId);
+    currentFamilyMembers = currentFamily ? await listFamilyMembers(profile.primaryFamilyId) : [];
+  } catch (error) {
+    console.error('Failed to load family settings:', error);
+    setFamilyMessage('Could not load family settings right now.', 'error');
+  }
+
+  renderFamilySection();
+}
+
+async function handleCopyInviteCode() {
+  if (!currentFamily?.inviteCode) {
+    setFamilyMessage('No invite code is available yet.', 'error');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentFamily.inviteCode);
+    setFamilyMessage('Invite code copied.', 'success');
+  } catch {
+    setFamilyMessage(`Invite code: ${currentFamily.inviteCode}`, 'success');
+  }
+}
+
+async function handleRegenerateInviteCode() {
+  if (!currentUser?.uid || currentUserProfile?.role !== 'parent') {
+    return;
+  }
+
+  try {
+    const nextCode = await createUniqueInviteCode();
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      inviteCode: nextCode,
+      inviteStatus: 'active',
+      updatedAt: serverTimestamp()
+    });
+
+    currentFamily = {
+      ...(currentFamily || {}),
+      id: currentUser.uid,
+      inviteCode: nextCode
+    };
+    renderFamilySection();
+    setFamilyMessage('Invite code regenerated.', 'success');
+  } catch (error) {
+    console.error('Failed to regenerate invite code:', error);
+    setFamilyMessage('Could not regenerate the invite code.', 'error');
+  }
+}
+
+async function handleJoinParentByCode() {
+  if (!currentUser?.uid || currentUserProfile?.role !== 'parent') {
+    return;
+  }
+
+  const enteredCode = elements.joinParentCodeInput?.value || '';
+  const linkedParent = await findFamilyByInviteCode(enteredCode);
+
+  if (!linkedParent || linkedParent.role !== 'parent') {
+    setFamilyMessage('That parent invite code is invalid.', 'error');
+    return;
+  }
+
+  if (linkedParent.id === currentUser.uid) {
+    setFamilyMessage('That invite code belongs to your account.', 'error');
+    return;
+  }
+
+  const myDisplayName = buildDisplayName(currentUserProfile?.firstName, currentUserProfile?.lastName) || currentUserProfile?.username || currentUserProfile?.email || 'Parent';
+  const theirDisplayName = buildDisplayName(linkedParent.firstName, linkedParent.lastName) || linkedParent.username || linkedParent.email || 'Parent';
+
+  try {
+    await Promise.all([
+      setDoc(doc(db, 'users', currentUser.uid, 'familyMembers', linkedParent.id), {
+        uid: linkedParent.id,
+        role: 'parent',
+        status: 'active',
+        displayName: theirDisplayName,
+        email: linkedParent.email || '',
+        joinedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true }),
+      setDoc(doc(db, 'users', linkedParent.id, 'familyMembers', currentUser.uid), {
+        uid: currentUser.uid,
+        role: 'parent',
+        status: 'active',
+        displayName: myDisplayName,
+        email: currentUserProfile?.email || currentUser.email || '',
+        joinedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+    ]);
+
+    elements.joinParentCodeInput.value = '';
+    await loadFamilySettings(currentUserProfile);
+    setFamilyMessage('Parent linked successfully.', 'success');
+  } catch (error) {
+    console.error('Failed to link parent account:', error);
+    setFamilyMessage('Could not link that parent account right now.', 'error');
+  }
+}
+
+async function handleFamilyChildrenInteraction(event) {
+  const actionTarget = event.target.closest('[data-family-action]');
+
+  if (!actionTarget || !currentUser?.uid) {
+    return;
+  }
+
+  const memberId = actionTarget.dataset.memberId;
+  const action = actionTarget.dataset.familyAction;
+
+  if (!memberId) {
+    return;
+  }
+
+  try {
+    if (action === 'toggle-permission' && actionTarget.matches('input[type="checkbox"]')) {
+      const permission = actionTarget.dataset.permission;
+      await updateDoc(doc(db, 'users', currentUser.uid, 'familyMembers', memberId), {
+        [`permissions.${permission}`]: actionTarget.checked,
+        updatedAt: serverTimestamp()
+      });
+
+      const member = currentFamilyMembers.find((entry) => entry.uid === memberId);
+      if (member) {
+        member.permissions = {
+          ...(member.permissions || {}),
+          [permission]: actionTarget.checked
+        };
+      }
+
+      setFamilyMessage('Child portal permissions updated.', 'success');
+      return;
+    }
+
+    if (action === 'remove-child') {
+      if (!window.confirm('Remove this child from the family portal?')) {
+        return;
+      }
+
+      await deleteDoc(doc(db, 'users', currentUser.uid, 'familyMembers', memberId));
+      await updateDoc(doc(db, 'users', memberId), {
+        role: 'solo',
+        primaryFamilyId: null,
+        updatedAt: serverTimestamp()
+      });
+
+      currentFamilyMembers = currentFamilyMembers.filter((member) => member.uid !== memberId);
+      renderFamilySection();
+      setFamilyMessage('Child removed from the family portal.', 'success');
+    }
+  } catch (error) {
+    console.error('Failed to update family membership:', error);
+    setFamilyMessage('Could not update family settings.', 'error');
+  }
+}
+
+async function switchRoleTo(targetRole) {
+  if (!currentUser?.uid || !currentUserProfile) {
+    return false;
+  }
+
+  const currentRole = currentUserProfile.role || 'solo';
+
+  if (targetRole === currentRole) {
+    return false;
+  }
+
+  setFormDisabled(true);
+
+  try {
+    const updatePayload = {
+      role: targetRole,
+      updatedAt: serverTimestamp()
+    };
+
+    const oldPrimaryFamilyId = currentUserProfile.primaryFamilyId || null;
+
+    if (currentRole === 'child' && oldPrimaryFamilyId) {
+      await deleteDoc(doc(db, 'users', oldPrimaryFamilyId, 'familyMembers', currentUser.uid));
+    }
+
+    if (targetRole === 'solo') {
+      updatePayload.primaryFamilyId = null;
+    }
+
+    if (targetRole === 'parent') {
+      const existingInviteCode = String(currentUserProfile.inviteCode || '').trim();
+      const nextInviteCode = existingInviteCode || await createUniqueInviteCode();
+
+      updatePayload.primaryFamilyId = currentUser.uid;
+      updatePayload.inviteCode = nextInviteCode;
+      updatePayload.inviteStatus = 'active';
+
+      await setDoc(doc(db, 'users', currentUser.uid, 'familyMembers', currentUser.uid), {
+        uid: currentUser.uid,
+        role: 'parent',
+        status: 'active',
+        displayName: buildDisplayName(currentUserProfile.firstName, currentUserProfile.lastName) || currentUserProfile.username || currentUserProfile.email || 'Parent',
+        email: currentUserProfile.email || currentUser.email || '',
+        permissions: getDefaultMemberPermissions('parent'),
+        joinedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+
+    if (targetRole === 'child') {
+      const rawCode = window.prompt('Enter the parent invite code to connect this account as a child:');
+      const inviteCode = normalizeInviteCode(rawCode || '');
+
+      if (!inviteCode) {
+        setFamilyMessage('A valid parent invite code is required to switch to Child.', 'error');
+        return false;
+      }
+
+      const linkedParent = await findFamilyByInviteCode(inviteCode);
+
+      if (!linkedParent || linkedParent.role !== 'parent') {
+        setFamilyMessage('That parent invite code is invalid.', 'error');
+        return false;
+      }
+
+      if (linkedParent.id === currentUser.uid) {
+        setFamilyMessage('You cannot use your own invite code for Child mode.', 'error');
+        return false;
+      }
+
+      updatePayload.primaryFamilyId = linkedParent.id;
+
+      await setDoc(doc(db, 'users', linkedParent.id, 'familyMembers', currentUser.uid), {
+        uid: currentUser.uid,
+        role: 'child',
+        status: 'active',
+        displayName: buildDisplayName(currentUserProfile.firstName, currentUserProfile.lastName) || currentUserProfile.username || currentUserProfile.email || 'Child Account',
+        email: currentUserProfile.email || currentUser.email || '',
+        permissions: getDefaultMemberPermissions('child'),
+        joinedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+
+    await updateDoc(doc(db, 'users', currentUser.uid), updatePayload);
+
+    currentUserProfile = {
+      ...currentUserProfile,
+      ...updatePayload,
+      role: targetRole,
+      primaryFamilyId: updatePayload.primaryFamilyId ?? null
+    };
+
+    await loadFamilySettings(currentUserProfile);
+    setFamilyMessage(`Account role updated to ${getRoleLabel(targetRole)}.`, 'success');
+    return true;
+  } catch (error) {
+    console.error('Failed to switch account role:', error);
+    setFamilyMessage('Could not update account role right now.', 'error');
+    return false;
+  } finally {
+    setFormDisabled(false);
+  }
 }
 
 function setProfilePhotoModalOpen(isOpen) {
@@ -130,9 +736,64 @@ function setProfilePhotoModalOpen(isOpen) {
     } else {
       elements.profilePhotoCropper.hidden = true;
       elements.profilePhotoControls.hidden = true;
-      setPhotoModalCopy('Upload an image to start cropping.');
+      setPhotoModalCopy('');
     }
   }
+}
+
+async function persistPendingProfilePhotoSelection() {
+  if (!currentUser?.uid || (!pendingProfilePhotoDataUrl && !pendingProfileAvatarName)) {
+    return;
+  }
+
+  try {
+    const nextPhotoAvatarName = pendingProfileAvatarName
+      ? String(pendingProfileAvatarName || '').trim()
+      : '';
+    const nextPhotoURL = nextPhotoAvatarName
+      ? ''
+      : String(pendingProfilePhotoDataUrl || '').trim();
+
+    if (nextPhotoURL) {
+      saveLocalProfilePhoto(currentUser.uid, nextPhotoURL);
+    } else {
+      saveLocalProfilePhoto(currentUser.uid, '');
+    }
+
+    await updateDoc(doc(db, 'users', currentUser.uid), {
+      photoURL: nextPhotoURL,
+      photoAvatarName: nextPhotoAvatarName,
+      updatedAt: serverTimestamp()
+    });
+
+    currentUserProfile = {
+      ...(currentUserProfile || {}),
+      photoURL: nextPhotoURL,
+      photoAvatarName: nextPhotoAvatarName
+    };
+
+    setProfilePhotoPreview(nextPhotoURL, nextPhotoAvatarName);
+    broadcastProfileUpdate(nextPhotoURL || '', nextPhotoURL || '', currentUser.uid);
+
+    pendingProfilePhotoDataUrl = '';
+    pendingProfileAvatarName = '';
+    pendingProfilePhotoObjectUrl = '';
+    photoSourceImage = null;
+    hasUnappliedCrop = false;
+    elements.profilePhotoInput.value = '';
+    elements.profilePhotoCropper.hidden = true;
+    elements.profilePhotoControls.hidden = true;
+
+    setAccountMessage('Profile photo saved.', 'success');
+  } catch (error) {
+    console.error('Failed to save profile photo selection:', error);
+    setAccountMessage('Could not save profile photo right now.', 'error');
+  }
+}
+
+async function closeProfilePhotoModalWithSave() {
+  await persistPendingProfilePhotoSelection();
+  setProfilePhotoModalOpen(false);
 }
 
 function resetCropState() {
@@ -143,6 +804,28 @@ function resetCropState() {
   elements.profilePhotoZoomInput.value = '1';
   elements.profilePhotoOffsetXInput.value = '0';
   elements.profilePhotoOffsetYInput.value = '0';
+}
+
+function handlePresetAvatarSelection(avatarName) {
+  const selectedAvatarName = String(avatarName || '').trim();
+  const selectedAvatarSource = getPresetAvatarSource(selectedAvatarName);
+
+  if (!selectedAvatarName || !selectedAvatarSource) {
+    return;
+  }
+
+  pendingProfileAvatarName = selectedAvatarName;
+  pendingProfilePhotoDataUrl = '';
+  hasUnappliedCrop = false;
+  photoSourceImage = null;
+
+  elements.profilePhotoInput.value = '';
+  elements.profilePhotoCropper.hidden = true;
+  elements.profilePhotoControls.hidden = true;
+
+  setProfilePhotoPreview('', selectedAvatarName);
+  setPhotoModalCopy('');
+  setAccountMessage('');
 }
 
 function drawCropPreview() {
@@ -211,13 +894,15 @@ async function handleProfilePhotoInputChange() {
 
   try {
     photoSourceImage = await loadImageForCropping(file);
+    pendingProfileAvatarName = '';
+    setActiveAvatarOption('');
     resetCropState();
     drawCropPreview();
     elements.profilePhotoCropper.hidden = false;
     elements.profilePhotoControls.hidden = false;
     hasUnappliedCrop = true;
-    setPhotoModalCopy('Image loaded. Adjust the crop, then click Use Cropped Photo.');
-    setAccountMessage('Adjust the crop and click Apply Cropped Photo.', '');
+    setPhotoModalCopy('Image loaded. Adjust the crop, then choose Use Cropped Photo.');
+    setAccountMessage('Adjust the crop, then use cropped photo.', '');
   } catch (error) {
     console.error('Failed to load profile image:', error);
     setAccountMessage('Could not load that image. Try a different file.', 'error');
@@ -259,6 +944,7 @@ async function handleApplyCroppedPhoto() {
   try {
     const compressedDataUrl = exportCompressedProfilePhoto(elements.profilePhotoCanvas);
     pendingProfilePhotoDataUrl = compressedDataUrl;
+    pendingProfileAvatarName = '';
     hasUnappliedCrop = false;
 
     if (pendingProfilePhotoObjectUrl) {
@@ -267,8 +953,8 @@ async function handleApplyCroppedPhoto() {
 
     pendingProfilePhotoObjectUrl = compressedDataUrl;
     setProfilePhotoPreview(pendingProfilePhotoObjectUrl);
-    setAccountMessage('Cropped photo ready. Click Save Changes to store on this device.', 'success');
-    setPhotoModalCopy('Cropped photo selected. Save account changes to store it on this device.');
+    setAccountMessage('Cropped photo ready.', 'success');
+    setPhotoModalCopy('Cropped photo selected. Click outside the popup to save.');
     setProfilePhotoModalOpen(false);
   } catch (error) {
     console.error('Failed to crop profile image:', error);
@@ -292,6 +978,7 @@ function broadcastProfileUpdate(photoURL, localPhotoDataUrl = '', userId = '') {
   const payload = JSON.stringify({
     photoURL,
     localPhotoDataUrl,
+    photoAvatarName: String(currentUserProfile?.photoAvatarName || '').trim(),
     userId,
     at: Date.now()
   });
@@ -299,7 +986,13 @@ function broadcastProfileUpdate(photoURL, localPhotoDataUrl = '', userId = '') {
   localStorage.setItem('mf_profile_updated', payload);
 
   if (window.parent && window.parent !== window) {
-    window.parent.postMessage({ type: 'mf-profile-updated', photoURL, localPhotoDataUrl, userId }, window.location.origin);
+    window.parent.postMessage({
+      type: 'mf-profile-updated',
+      photoURL,
+      localPhotoDataUrl,
+      photoAvatarName: String(currentUserProfile?.photoAvatarName || '').trim(),
+      userId
+    }, window.location.origin);
   }
 }
 
@@ -345,6 +1038,15 @@ function setFormDisabled(disabled) {
   elements.lastNameInput.disabled = disabled;
   elements.usernameInput.disabled = disabled;
   elements.emailInput.disabled = disabled;
+  elements.copyInviteButton.disabled = disabled;
+  elements.regenerateInviteButton.disabled = disabled;
+  elements.joinParentButton.disabled = disabled;
+  elements.joinParentCodeInput.disabled = disabled;
+  elements.roleSwitchToggleButton.disabled = disabled;
+  elements.roleSwitchSelect.disabled = disabled;
+  elements.roleSwitchVerifyInput.disabled = disabled;
+  elements.roleSwitchCancelButton.disabled = disabled;
+  elements.roleSwitchApplyButton.disabled = disabled;
   setProfilePhotoEditingDisabled(disabled);
 }
 
@@ -355,13 +1057,23 @@ async function loadAccountData(user) {
   try {
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     const data = userDoc.exists() ? userDoc.data() : {};
+    currentUserProfile = {
+      uid: user.uid,
+      ...data,
+      role: data.role || 'solo',
+      primaryFamilyId: data.primaryFamilyId || (data.role === 'parent' ? user.uid : null)
+    };
 
     elements.firstNameInput.value = data.firstName || (user.displayName || '').split(' ')[0] || '';
     elements.lastNameInput.value = data.lastName || (user.displayName || '').split(' ').slice(1).join(' ') || '';
     elements.usernameInput.value = data.username || '';
     elements.emailInput.value = user.email || '';
     const localPhotoDataUrl = getLocalProfilePhoto(user.uid);
-    setProfilePhotoPreview(localPhotoDataUrl || data.photoURL || user.photoURL || getDefaultProfilePhotoUrl());
+    setProfilePhotoPreview(
+      localPhotoDataUrl || data.photoURL || user.photoURL || '',
+      String(data.photoAvatarName || '').trim()
+    );
+    await loadFamilySettings(currentUserProfile);
 
     setPageMessage('');
   } catch (error) {
@@ -417,7 +1129,8 @@ async function handleSave(event) {
     const displayName = `${firstName} ${lastName}`.trim();
     const writes = [];
     const profileUpdatePayload = {};
-    let nextPhotoURL = currentUser.photoURL || '';
+    let nextPhotoURL = currentUserProfile?.photoURL || currentUser.photoURL || '';
+    let nextPhotoAvatarName = String(currentUserProfile?.photoAvatarName || '').trim();
     let localPhotoDataUrl = getLocalProfilePhoto(currentUser.uid);
 
     if (displayName && currentUser.displayName !== displayName) {
@@ -427,6 +1140,15 @@ async function handleSave(event) {
     if (pendingProfilePhotoDataUrl) {
       saveLocalProfilePhoto(currentUser.uid, pendingProfilePhotoDataUrl);
       localPhotoDataUrl = pendingProfilePhotoDataUrl;
+      nextPhotoURL = pendingProfilePhotoDataUrl;
+      nextPhotoAvatarName = '';
+    }
+
+    if (pendingProfileAvatarName) {
+      saveLocalProfilePhoto(currentUser.uid, '');
+      localPhotoDataUrl = '';
+      nextPhotoURL = '';
+      nextPhotoAvatarName = pendingProfileAvatarName;
     }
 
     if (Object.keys(profileUpdatePayload).length > 0) {
@@ -447,11 +1169,23 @@ async function handleSave(event) {
       username,
       email: newEmail,
       photoURL: nextPhotoURL || '',
+      photoAvatarName: nextPhotoAvatarName || '',
       updatedAt: serverTimestamp()
     });
 
-    if (pendingProfilePhotoDataUrl) {
+    currentUserProfile = {
+      ...(currentUserProfile || {}),
+      firstName,
+      lastName,
+      username,
+      email: newEmail,
+      photoURL: nextPhotoURL || '',
+      photoAvatarName: nextPhotoAvatarName || ''
+    };
+
+    if (pendingProfilePhotoDataUrl || pendingProfileAvatarName) {
       pendingProfilePhotoDataUrl = '';
+      pendingProfileAvatarName = '';
       pendingProfilePhotoObjectUrl = '';
       photoSourceImage = null;
       elements.profilePhotoInput.value = '';
@@ -484,15 +1218,17 @@ function setupProfilePhotoListeners() {
     setProfilePhotoModalOpen(true);
   });
 
-  elements.profilePhotoModal.addEventListener('click', (event) => {
-    if (event.target.closest('[data-photo-close]')) {
-      setProfilePhotoModalOpen(false);
+  elements.profilePhotoModal.addEventListener('click', async (event) => {
+    const clickedBackdrop = event.target.classList?.contains('modal-backdrop');
+
+    if (clickedBackdrop) {
+      await closeProfilePhotoModalWithSave();
     }
   });
 
-  document.addEventListener('keydown', (event) => {
+  document.addEventListener('keydown', async (event) => {
     if (event.key === 'Escape' && !elements.profilePhotoModal.hidden) {
-      setProfilePhotoModalOpen(false);
+      await closeProfilePhotoModalWithSave();
     }
   });
 
@@ -503,11 +1239,77 @@ function setupProfilePhotoListeners() {
   });
 
   elements.profilePhotoInput.addEventListener('change', handleProfilePhotoInputChange);
+
+  if (elements.profileAvatarPicker) {
+    elements.profileAvatarPicker.addEventListener('click', (event) => {
+      const avatarButton = event.target.closest('.profile-avatar-option[data-avatar-name]');
+
+      if (!avatarButton) {
+        return;
+      }
+
+      handlePresetAvatarSelection(avatarButton.dataset.avatarName);
+    });
+  }
+
   elements.profilePhotoZoomInput.addEventListener('input', updateCropFromControls);
   elements.profilePhotoOffsetXInput.addEventListener('input', updateCropFromControls);
   elements.profilePhotoOffsetYInput.addEventListener('input', updateCropFromControls);
   elements.profilePhotoApplyButton.addEventListener('click', handleApplyCroppedPhoto);
   elements.profilePhotoResetButton.addEventListener('click', handleResetCrop);
+}
+
+function setupFamilyListeners() {
+  setRoleSwitchPanelOpen(false);
+
+  elements.copyInviteButton.addEventListener('click', handleCopyInviteCode);
+  elements.regenerateInviteButton.addEventListener('click', handleRegenerateInviteCode);
+  elements.joinParentButton.addEventListener('click', handleJoinParentByCode);
+  elements.roleSwitchToggleButton.addEventListener('click', () => {
+    setRoleSwitchPanelOpen(elements.roleSwitchPanel.hidden);
+  });
+  elements.roleSwitchCancelButton.addEventListener('click', () => {
+    setRoleSwitchPanelOpen(false);
+  });
+  elements.roleSwitchApplyButton.addEventListener('click', async () => {
+    const verifyText = String(elements.roleSwitchVerifyInput.value || '').trim().toUpperCase();
+
+    if (verifyText !== 'SWITCH') {
+      setFamilyMessage('Please type SWITCH to verify role changes.', 'error');
+      return;
+    }
+
+    const targetRole = elements.roleSwitchSelect.value === 'child' ? 'child' : 'parent';
+    const switched = await switchRoleTo(targetRole);
+    if (switched) {
+      setRoleSwitchPanelOpen(false);
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!elements.roleSwitchRow || elements.roleSwitchRow.hidden || elements.roleSwitchPanel.hidden) {
+      return;
+    }
+
+    if (!elements.roleSwitchRow.contains(event.target)) {
+      setRoleSwitchPanelOpen(false);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && elements.roleSwitchPanel && !elements.roleSwitchPanel.hidden) {
+      setRoleSwitchPanelOpen(false);
+    }
+  });
+
+  window.addEventListener('blur', () => {
+    if (elements.roleSwitchPanel && !elements.roleSwitchPanel.hidden) {
+      setRoleSwitchPanelOpen(false);
+    }
+  });
+
+  elements.familyChildrenList.addEventListener('click', handleFamilyChildrenInteraction);
+  elements.familyChildrenList.addEventListener('change', handleFamilyChildrenInteraction);
 }
 
 async function handleResetPassword() {
@@ -542,5 +1344,6 @@ function handleAuthStateChanged(user) {
 elements.form.addEventListener('submit', handleSave);
 elements.resetPasswordButton.addEventListener('click', handleResetPassword);
 setupProfilePhotoListeners();
+setupFamilyListeners();
 
 onAuthStateChanged(auth, handleAuthStateChanged);

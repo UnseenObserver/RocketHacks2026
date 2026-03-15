@@ -362,6 +362,10 @@ header {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.tab[hidden] {
+  display: none;
+}
+
 .tabs {
   display: flex;
   gap: 10px;
@@ -1375,6 +1379,52 @@ body.embedded header {
 }
 
 /* ── Account Page ── */
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.compact-heading-row {
+  margin-bottom: 12px;
+}
+
+.section-heading-row h2,
+.compact-heading-row h3 {
+  margin: 0;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+}
+
+.role-badge-parent {
+  color: #7c3aed;
+  border-color: rgba(124, 58, 237, 0.22);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.role-badge-child {
+  color: #0f766e;
+  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.role-badge-solo {
+  color: var(--app-muted);
+}
+
 .account-form-grid {
   grid-template-columns: 1fr 1fr;
 }
@@ -1435,6 +1485,317 @@ body.embedded header {
   max-width: 120px;
 }
 
+.family-inline-message {
+  min-height: 20px;
+  text-align: left;
+  margin-bottom: 10px;
+}
+
+.role-switch-row {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
+.role-switch-toggle {
+  min-height: 36px;
+}
+
+.role-switch-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(340px, 86vw);
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.14);
+  z-index: 25;
+  display: grid;
+  gap: 10px;
+}
+
+.role-switch-panel[hidden] {
+  display: none;
+}
+
+.role-switch-panel select {
+  min-width: 100%;
+}
+
+.role-switch-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.family-section-heading {
+  align-items: flex-start;
+}
+
+.family-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.family-summary-card {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.family-summary-card-wide {
+  margin-top: 8px;
+}
+
+.family-management-layout {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.family-management-layout .family-members-section {
+  min-height: 100%;
+}
+
+.family-join-parent-card {
+  margin-top: 0;
+}
+
+.family-summary-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+}
+
+.family-invite-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  padding: 8px 10px;
+}
+
+.family-invite-code-box strong {
+  letter-spacing: 0.08em;
+  font-size: 1rem;
+}
+
+.family-invite-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.family-invite-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+
+.family-invite-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.family-invite-icon-btn:hover {
+  border-color: var(--app-accent-border);
+  background: var(--app-accent-soft);
+}
+
+.family-invite-icon-btn:focus-visible {
+  outline: none;
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.family-invite-icon-btn:active {
+  transform: scale(0.96);
+}
+
+.family-join-parent-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  margin-top: 10px;
+  min-height: 68px;
+  align-items: center;
+}
+
+.family-join-parent-row input {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--app-border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--app-text);
+  background: var(--app-surface-soft);
+  transition: border-color 0.2s;
+}
+
+.family-join-parent-row input:focus {
+  outline: none;
+  border-color: var(--app-accent);
+  background: var(--app-surface);
+}
+
+.family-join-parent-row .btn-secondary {
+  min-height: 42px;
+  align-self: center;
+}
+
+.family-members-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.family-members-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.family-member-card {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+}
+
+.family-member-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.parent-child-avatar-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 34px;
+  border: 1px solid var(--app-accent-border);
+  background: var(--app-accent-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.parent-child-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.parent-child-avatar-fallback {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+@media (max-width: 1140px) {
+  .family-management-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.family-member-header p,
+.family-detail-copy {
+  margin: 4px 0 0;
+  color: var(--app-muted);
+  font-size: 0.88rem;
+}
+
+.family-permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.family-permission-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  color: var(--app-text);
+}
+
+.family-permission-toggle input {
+  accent-color: var(--app-accent);
+}
+
+.parent-portal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.parent-portal-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.parent-portal-filter {
+  min-width: 220px;
+}
+
+.parent-portal-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.parent-portal-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+
+.compact-family-member-card {
+  padding-bottom: 12px;
+}
+
+.parent-child-metrics {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  color: var(--app-muted);
+  font-size: 0.88rem;
+}
+
+.parent-child-metrics strong {
+  color: var(--app-text);
+}
+
 .account-form-actions {
   position: relative;
   display: flex;
@@ -1447,6 +1808,16 @@ body.embedded header {
 .profile-section {
   display: flex;
   flex-direction: column;
+}
+
+.profile-section,
+.family-section {
+  padding-top: 16px;
+}
+
+.profile-section .section-heading-row,
+.family-section .section-heading-row {
+  margin-bottom: 8px;
 }
 
 .profile-section {
@@ -1486,6 +1857,70 @@ body.embedded header {
   color: var(--app-muted);
 }
 
+.profile-photo-local-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--app-accent-hover);
+  background: var(--app-accent-soft);
+  border: 1px solid var(--app-accent-border);
+  line-height: 1;
+}
+
+.profile-avatar-picker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-avatar-option {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.profile-avatar-option img {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.profile-avatar-option:hover {
+  border-color: var(--app-accent-border);
+  transform: translateY(-1px);
+}
+
+.profile-avatar-option.active {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.profile-avatar-option:focus-visible {
+  outline: none;
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+@media (max-width: 560px) {
+  .profile-avatar-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .profile-photo-cropper {
   width: min(320px, 100%);
   aspect-ratio: 1 / 1;
@@ -1515,6 +1950,50 @@ body.embedded header {
 
 .profile-photo-controls input[type="range"] {
   width: 100%;
+}
+
+#profile-photo-input {
+  width: 100%;
+  padding: 8px;
+  border: 1.5px solid var(--app-border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--app-muted);
+  background: var(--app-surface-soft);
+}
+
+#profile-photo-input:focus {
+  outline: none;
+  border-color: var(--app-accent);
+  background: var(--app-surface);
+}
+
+#profile-photo-input::file-selector-button {
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+#profile-photo-input::file-selector-button:hover {
+  border-color: var(--app-accent-border);
+  background: var(--app-accent-soft);
+}
+
+#profile-photo-input::-webkit-file-upload-button {
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .profile-photo-actions {
@@ -1690,6 +2169,17 @@ body.embedded header {
   gap: 14px;
 }
 
+.auth-field-copy {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--app-muted);
+  line-height: 1.45;
+}
+
+.auth-conditional-field[hidden] {
+  display: none;
+}
+
 .auth-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1775,6 +2265,83 @@ body.embedded header {
   line-height: 1.4;
 }
 
+.auth-divider {
+  position: relative;
+  text-align: center;
+  margin: 2px 0;
+}
+
+.auth-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--app-border);
+}
+
+.auth-divider span {
+  position: relative;
+  display: inline-block;
+  padding: 0 10px;
+  background: var(--app-surface);
+  color: var(--app-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.auth-social-button {
+  width: 100%;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.94rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.1s;
+}
+
+.auth-social-button:hover {
+  background: var(--app-accent-soft);
+  border-color: var(--app-accent-border);
+}
+
+.auth-social-button:active {
+  transform: scale(0.99);
+}
+
+.auth-social-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #ea4335;
+  font-weight: 800;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.gis-button-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+#google-gis-login-button:empty {
+  display: none;
+}
+
 .auth-submit {
   width: 100%;
   padding: 12px;
@@ -1838,6 +2405,10 @@ body.embedded header {
   .profile-photo-device-note {
     max-width: none;
     text-align: left;
+  }
+
+  .parent-portal-grid {
+    grid-template-columns: 1fr;
   }
 
   .split-row-remove {

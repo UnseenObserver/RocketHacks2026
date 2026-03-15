@@ -32,6 +32,8 @@ Basic budget tracker with Firebase Authentication and Firestore-backed transacti
 The front end is already wired to Firebase, but the project still depends on Firebase Console setup:
 
 1. Enable `Authentication > Sign-in method > Email/Password`.
+2. Enable `Authentication > Sign-in method > Google` and select a support email.
+3. In `Authentication > Settings > Authorized domains`, add all app domains (`localhost` and your deployed host).
 2. Create a Firestore database.
 3. Use rules that allow a signed-in user to read and write their own user document and `transactions` subcollection.
 
@@ -51,6 +53,28 @@ service cloud.firestore {
 	}
 }
 ```
+
+## Google login (implemented)
+
+The auth page includes Google buttons in both login and sign-up flows.
+
+- Login uses the Google Identity Services (GIS) rendered button, then exchanges the Google credential with Firebase via `signInWithCredential`.
+- If GIS is unavailable or no GIS client ID is configured, login falls back to `signInWithPopup`.
+- `Sign up with Google` provisions a new user profile document (and family role links if account type is `Parent Portal` or `Child Account`).
+- Existing Google users without a Firestore profile are auto-provisioned on first successful login.
+- Popup-specific errors are handled (`popup blocked`, `popup closed`, `account exists with different credential`).
+
+GIS client ID setup:
+
+- Add your Google web client ID to `login.html` in the `meta` tag:
+	- `<meta name="google-signin-client_id" content="YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com" />`
+- This is required for the GIS rendered login button.
+
+Relevant implementation files:
+
+- `assets/js/auth.js` (Google provider sign-in, user provisioning, auth state handling)
+- `login.html` (Google auth buttons)
+- `styles.css` (Google button styling)
 
 ## Notes
 
