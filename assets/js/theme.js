@@ -5,13 +5,13 @@ import { BUILT_IN_PRESETS } from './presets.js';
 
 const DEFAULT_THEME = {
   name: 'Default',
-  background: 'radial-gradient(circle at top, #f7f5ff 0%, #e5f4ff 45%, #f6fff7 100%)',
-  accent: '#4f46e5',
-  accentHover: '#4338ca',
-  accentSoft: 'rgba(79, 70, 229, 0.12)',
-  accentSoftStrong: 'rgba(79, 70, 229, 0.18)',
-  accentBorder: 'rgba(79, 70, 229, 0.35)',
-  accentShadow: 'rgba(79, 70, 229, 0.22)',
+  background: 'radial-gradient(circle at top, #fff7f7 0%, #ffe4e6 45%, #fff1f2 100%)',
+  accent: '#ff573c',
+  accentHover: '#ff3532',
+  accentSoft: 'rgba(255, 87, 60, 0.12)',
+  accentSoftStrong: 'rgba(255, 87, 60, 0.18)',
+  accentBorder: 'rgba(255, 87, 60, 0.35)',
+  accentShadow: 'rgba(255, 87, 60, 0.22)',
   textColor: '#333333',
   headingColor: '#1a1a2e',
   subtitleColor: '#666666',
@@ -31,7 +31,7 @@ function toRgba(hex, alpha) {
   const cleaned = String(hex || '').replace('#', '').trim();
 
   if (!/^[\da-fA-F]{6}$/.test(cleaned)) {
-    return `rgba(79, 70, 229, ${alpha})`;
+    return `rgba(255, 87, 60, ${alpha})`;
   }
 
   const r = parseInt(cleaned.slice(0, 2), 16);

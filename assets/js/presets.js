@@ -14,7 +14,7 @@
 
 function toRgba(hex, alpha) {
   const cleaned = String(hex || '').replace('#', '').trim();
-  if (!/^[\da-fA-F]{6}$/.test(cleaned)) return `rgba(79, 70, 229, ${alpha})`;
+  if (!/^[\da-fA-F]{6}$/.test(cleaned)) return `rgba(255, 87, 60, ${alpha})`;
   const r = parseInt(cleaned.slice(0, 2), 16);
   const g = parseInt(cleaned.slice(2, 4), 16);
   const b = parseInt(cleaned.slice(4, 6), 16);
@@ -22,7 +22,7 @@ function toRgba(hex, alpha) {
 }
 
 function buildPreset(id, name, background, accent, extra = {}) {
-  const safeAccent = /^#[\da-fA-F]{6}$/.test(accent) ? accent : '#4f46e5';
+  const safeAccent = /^#[\da-fA-F]{6}$/.test(accent) ? accent : '#ff573c';
   return {
     id,
     name,
@@ -40,9 +40,10 @@ function buildPreset(id, name, background, accent, extra = {}) {
 export const BUILT_IN_PRESETS = [
   buildPreset(
     'preset_classic',
-    'Classic Indigo',
-    'radial-gradient(circle at top, #f7f5ff 0%, #e5f4ff 45%, #f6fff7 100%)',
-    '#4f46e5'
+    'Classic Crimson',
+    'radial-gradient(circle at top, #fff7f7 0%, #ffe4e6 45%, #fff1f2 100%)',
+    '#ff573c',
+    { accentHover: '#ff3532' }
   ),
   buildPreset(
     'preset_forest',

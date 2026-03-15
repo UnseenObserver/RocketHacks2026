@@ -6,13 +6,13 @@
 }
 
 :root {
-  --app-bg: radial-gradient(circle at top, #f7f5ff 0%, #e5f4ff 45%, #f6fff7 100%);
-  --app-accent: #4f46e5;
-  --app-accent-hover: #4338ca;
-  --app-accent-soft: rgba(79, 70, 229, 0.12);
-  --app-accent-soft-strong: rgba(79, 70, 229, 0.18);
-  --app-accent-border: rgba(79, 70, 229, 0.35);
-  --app-accent-shadow: rgba(79, 70, 229, 0.22);
+  --app-bg: radial-gradient(circle at top, #fff7f7 0%, #ffe4e6 45%, #fff1f2 100%);
+  --app-accent: #ff573c;
+  --app-accent-hover: #ff3532;
+  --app-accent-soft: rgba(255, 87, 60, 0.12);
+  --app-accent-soft-strong: rgba(255, 87, 60, 0.18);
+  --app-accent-border: rgba(255, 87, 60, 0.35);
+  --app-accent-shadow: rgba(255, 87, 60, 0.22);
   --app-text: #333333;
   --app-heading: #1a1a2e;
   --app-subtitle: #666666;
@@ -1415,6 +1415,10 @@ body.embedded header {
 
 .auth-brand {
   text-align: center;
+}
+
+.auth-brand .header-logo {
+  margin: 0 auto;
 }
 
 .auth-brand h1 {
