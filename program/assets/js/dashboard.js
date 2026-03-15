@@ -1518,7 +1518,10 @@ async function loadParentPortalChildren(profile) {
       .filter((member) => member.role === 'parent' && member.status === 'active' && member.uid !== currentParentUid)
       .map((member) => member.uid);
 
-    const linkedParentMembers = await Promise.all(linkedParentUids.map((uid) => listFamilyMembers(uid)));
+    const linkedParentMembersSettled = await Promise.allSettled(linkedParentUids.map((uid) => listFamilyMembers(uid)));
+    const linkedParentMembers = linkedParentMembersSettled
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
 
     const childMembers = [
       ...ownMembers,
@@ -1527,16 +1530,20 @@ async function loadParentPortalChildren(profile) {
 
     const uniqueChildMembers = Array.from(new Map(childMembers.map((member) => [member.uid, member])).values());
 
-    parentPortalChildren = await Promise.all(uniqueChildMembers.map(async (member) => {
-      const [userSnapshot, transactionsSnapshot, goalsSnapshot] = await Promise.all([
-        getDoc(doc(db, 'users', member.uid)),
-        getDocs(collection(db, 'users', member.uid, 'transactions')),
-        getDocs(collection(db, 'users', member.uid, 'savingsGoals'))
+    const childCardsSettled = await Promise.allSettled(uniqueChildMembers.map(async (member) => {
+      const permissions = member.permissions || {};
+      const canReadTransactions = Boolean(permissions.canViewTransactions || permissions.canViewDashboardSummary);
+      const canReadGoals = Boolean(permissions.canViewGoals);
+
+      const userSnapshot = await getDoc(doc(db, 'users', member.uid));
+      const userData = userSnapshot.exists() ? userSnapshot.data() : {};
+
+      const [transactionsSnapshot, goalsSnapshot] = await Promise.all([
+        canReadTransactions ? getDocs(collection(db, 'users', member.uid, 'transactions')) : Promise.resolve(null),
+        canReadGoals ? getDocs(collection(db, 'users', member.uid, 'savingsGoals')) : Promise.resolve(null)
       ]);
 
-      const userData = userSnapshot.exists() ? userSnapshot.data() : {};
-      const permissions = member.permissions || {};
-      const transactionsList = permissions.canViewTransactions || permissions.canViewDashboardSummary
+      const transactionsList = canReadTransactions && transactionsSnapshot
         ? transactionsSnapshot.docs.map((entry) => {
           const data = entry.data();
           return {
@@ -1550,7 +1557,7 @@ async function loadParentPortalChildren(profile) {
         })
         : [];
 
-      const goalsList = permissions.canViewGoals
+      const goalsList = canReadGoals && goalsSnapshot
         ? goalsSnapshot.docs.map((entry) => entry.data())
         : [];
 
@@ -1576,6 +1583,10 @@ async function loadParentPortalChildren(profile) {
           .slice(0, 5)
       };
     }));
+
+    parentPortalChildren = childCardsSettled
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
   } catch (error) {
     console.error('Failed to load parent portal data:', error);
     setPageMessage('Could not load parent portal data right now.', 'error');

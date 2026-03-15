@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isSelfMember(memberUid) {
+      return isSignedIn() && request.auth.uid == memberUid;
+    }
+
+    function hasMembership(ownerUid, memberUid) {
+      return exists(/databases/$(database)/documents/users/$(ownerUid)/familyMembers/$(memberUid));
+    }
+
+    function membership(ownerUid, memberUid) {
+      return get(/databases/$(database)/documents/users/$(ownerUid)/familyMembers/$(memberUid)).data;
+    }
+
+    function isActiveMembership(ownerUid, memberUid) {
+      return hasMembership(ownerUid, memberUid) && membership(ownerUid, memberUid).status == 'active';
+    }
+
+    function isActiveParentInviteProfile() {
+      return resource.data.role == 'parent' && resource.data.inviteStatus == 'active';
+    }
+
+    // Parent portal: signed-in parent can read a child if child is actively listed in parent's familyMembers.
+    function isActiveLinkedChild(childUid) {
+      return isSignedIn()
+        && hasMembership(request.auth.uid, childUid)
+        && membership(request.auth.uid, childUid).role == 'child'
+        && membership(request.auth.uid, childUid).status == 'active';
+    }
+
+    // Family list visibility for linked-parent scenarios.
+    function canReadFamilyMembers(ownerUid) {
+      return isSelf(ownerUid)
+        || isActiveMembership(ownerUid, request.auth.uid)
+        || isActiveMembership(request.auth.uid, ownerUid);
+    }
+
+    function canViewChildTransactions(childUid) {
+      return isActiveLinkedChild(childUid)
+        && (
+          membership(request.auth.uid, childUid).permissions.canViewTransactions == true
+          || membership(request.auth.uid, childUid).permissions.canViewDashboardSummary == true
+        );
+    }
+
+    function canViewChildGoals(childUid) {
+      return isActiveLinkedChild(childUid)
+        && membership(request.auth.uid, childUid).permissions.canViewGoals == true;
+    }
+
+    function isValidSelfMembershipWrite(memberUid) {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.uid == memberUid
+        && request.resource.data.role in ['parent', 'child']
+        && request.resource.data.status == 'active';
+    }
+
+    match /users/{userId} {
+      allow create: if isSelf(userId);
+      allow read: if isSelf(userId)
+        || isActiveParentInviteProfile()
+        || isActiveLinkedChild(userId)
+        || isActiveMembership(userId, request.auth.uid)
+        || isActiveMembership(request.auth.uid, userId);
+      allow update, delete: if isSelf(userId);
+
+      match /familyMembers/{memberUid} {
+        allow read: if canReadFamilyMembers(userId) || isSelfMember(memberUid);
+
+        allow create, update: if isSelf(userId)
+          || (isSelfMember(memberUid) && isValidSelfMembershipWrite(memberUid));
+
+        allow delete: if isSelf(userId) || isSelfMember(memberUid);
+      }
+
+      match /transactions/{transactionId} {
+        allow read: if isSelf(userId) || canViewChildTransactions(userId);
+        allow create, update, delete: if isSelf(userId);
+      }
+
+      match /savingsGoals/{goalId} {
+        allow read: if isSelf(userId) || canViewChildGoals(userId);
+        // Parent portal can create goals for actively linked children.
+        allow create: if isSelf(userId) || isActiveLinkedChild(userId);
+        allow update, delete: if isSelf(userId);
+      }
+
+      match /splitRatios/{docId} {
+        allow read, write: if isSelf(userId);
+      }
+
+      match /visuals/{docId} {
+        allow read, write: if isSelf(userId);
+      }
+
+      match /{subcollection}/{docId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

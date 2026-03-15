@@ -47,23 +47,14 @@ This front-end expects Firebase to be configured in the Firebase Console:
 2. Enable `Authentication > Sign-in method > Google` and select a support email.
 3. Add allowed hosts in `Authentication > Settings > Authorized domains` (for example `localhost` and your deployed host).
 4. Create a Firestore database.
-5. Configure Firestore rules so each authenticated user can only read/write their own data.
+5. Configure Firestore rules using `firestore.rules` in this repository.
 
-Example rules (minimum baseline for current data shape):
+The included rules keep user-owned data private and allow the secure family-link flows used by parent/child invite codes.
 
-```txt
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+Deploy rules from the project root:
 
-      match /transactions/{transactionId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-  }
-}
+```bash
+firebase deploy --only firestore:rules
 ```
 
 ## Google Sign-In notes
