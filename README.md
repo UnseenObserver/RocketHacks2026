@@ -9,8 +9,10 @@ A Firebase-backed budgeting web app with account auth, transaction tracking, sav
 - Savings goals with progress indicators.
 - Split ratio allocation across categories, bills, and savings goals.
 - Family Portal support for `solo`, `parent`, and `child` account roles.
+- Invite-code validated family membership linking for parent/child and parent/parent relationships.
 - Account management (profile, role switch controls, password reset, profile photo).
 - Visual preferences (theme preset + animation speed).
+- Responsive mobile layout tuning across dashboard, history, and account flows.
 
 ## Project structure
 
@@ -51,6 +53,14 @@ This front-end expects Firebase to be configured in the Firebase Console:
 
 The included rules keep user-owned data private and allow the secure family-link flows used by parent/child invite codes.
 
+### Firestore security model (current)
+
+- Users can read and write their own profile and data documents.
+- Cross-user family membership creation is restricted to invite-code validated links.
+- Family membership updates are owner-controlled (`users/{ownerUid}/familyMembers/{memberUid}` updates by owner only).
+- Parent Portal child color updates are restricted to linked parent accounts and only specific color fields.
+- Support tickets are create/read-only for the authenticated ticket owner.
+
 Deploy rules from the project root:
 
 ```bash
@@ -70,6 +80,12 @@ firebase deploy --only firestore:rules
 - Transactions are stored at `users/{uid}/transactions/{transactionId}`.
 - Savings goals and split ratios are stored under each user document.
 - Parent-family membership links are stored in `users/{parentUid}/familyMembers/{memberUid}`.
+- Invite-based links store `joinedWithInviteCode` metadata for secure family membership validation.
+
+## User docs in app
+
+- `program/pages/faq.html` includes updated guidance for data security, mobile support, and in-app account deletion.
+- `program/pages/terms.html` includes updated wording for invite-code responsibility, account/data deletion behavior, and service/security disclaimers.
 
 ## Maintenance notes
 
