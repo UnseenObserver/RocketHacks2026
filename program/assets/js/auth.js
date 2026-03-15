@@ -95,6 +95,7 @@ function parseNameParts(displayName = '') {
 
 function saveGoogleRedirectContext(mode, signupContext = null) {
   try {
+    // Redirect auth loses in-memory state; persist enough context to complete provisioning after return.
     const payload = {
       mode,
       signupContext,
@@ -202,6 +203,7 @@ async function provisionUserProfile({
   linkedFamily,
   photoURL = ''
 }) {
+  // Keep user + family membership + starter data in one batch so onboarding doesn't partially apply.
   const displayName = buildDisplayName(firstName, lastName);
   let primaryFamilyId = null;
   let inviteCodeValue = '';

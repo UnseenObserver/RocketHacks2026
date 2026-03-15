@@ -1,83 +1,86 @@
-# RocketHacks2026
+# RocketHacks2026 (MoneyFirst / RookiePay)
 
-Basic budget tracker with Firebase Authentication and Firestore-backed transactions.
+A Firebase-backed budgeting web app with account auth, transaction tracking, savings goals, split-ratio planning, family portal roles, and theme customization.
 
-## File layout
+## Core features
 
-- `index.html`: entry redirect to login
-- `login.html`: login and sign-up markup
-- `dashboard.html`: main budget dashboard
-- `account.html`, `faq.html`, `terms.html`, `splitRatio.html`, `visuals.html`: settings/support subpages
-- `styles.css`: shared styling for all pages (single source of truth)
-- `assets/css/styles.css`: compatibility forwarder to `styles.css`
-- `assets/js/auth.js`: login, sign-up, and password reset behavior
-- `assets/js/dashboard.js`: dashboard behavior, transactions, goals, and subpage tabs
-- `assets/js/account.js`: profile and account updates
-- `assets/js/split-ratio.js`: split ratio configuration
-- `assets/js/visuals.js`: theme/animation preference UI
-- `assets/js/theme.js`: global theme application from user settings
-- `assets/js/presets.js`: built-in visual presets
-- `assets/js/firebase-config.js`: Firebase app initialization
-- `assets/js/cache-registration.js`: service worker registration
-- `service-worker.js`: offline caching for local static assets
+- Email/password and Google authentication.
+- Dashboard with income/expense tracking, running balance, and history.
+- Savings goals with progress indicators.
+- Split ratio allocation across categories, bills, and savings goals.
+- Family Portal support for `solo`, `parent`, and `child` account roles.
+- Account management (profile, role switch controls, password reset, profile photo).
+- Visual preferences (theme preset + animation speed).
 
-## What should work
+## Project structure
 
-- `login.html` lets a user sign up, log in, and request a password reset.
-- `dashboard.html` shows the authenticated user's transactions, totals, add form, delete, and clear-all.
-- `styles.css` styles auth, dashboard, and settings pages.
+- `index.html`: entry redirect to app login.
+- `program/pages/login.html`: login and sign-up UI.
+- `program/pages/dashboard.html`: main budgeting dashboard.
+- `program/pages/account.html`: profile + family portal settings.
+- `program/pages/splitRatio.html`: split ratio configuration.
+- `program/pages/visuals.html`: visual preference editor.
+- `program/pages/faq.html`, `program/pages/terms.html`: support/legal pages.
+- `program/styles.css`: shared app styling (single source of truth).
+- `program/assets/js/firebase-config.js`: Firebase app/auth/firestore/storage initialization.
+- `program/assets/js/auth.js`: auth flows and initial profile provisioning.
+- `program/assets/js/dashboard.js`: dashboard state, rendering, totals, and portal view.
+- `program/assets/js/account.js`: profile updates, family membership management, and avatar handling.
+- `program/assets/js/split-ratio.js`: ratio editor and validation.
+- `program/assets/js/theme.js`: runtime theme + animation mode application.
+- `program/assets/js/visuals.js`, `program/assets/js/presets.js`: visual settings UI and preset definitions.
+- `program/assets/js/family.js`: shared family/invite helpers.
+- `program/assets/js/cache-registration.js`, `program/assets/js/service-worker.js`: static asset caching.
 
-## Required Firebase setup
+## Local run
 
-The front end is already wired to Firebase, but the project still depends on Firebase Console setup:
+Serve with a local web server (not `file://`). Example options:
+
+- VS Code Live Server, or
+- `python -m http.server 5500` (from project root), then open `http://localhost:5500/program/pages/login.html`.
+
+## Firebase setup required
+
+This front-end expects Firebase to be configured in the Firebase Console:
 
 1. Enable `Authentication > Sign-in method > Email/Password`.
 2. Enable `Authentication > Sign-in method > Google` and select a support email.
-3. In `Authentication > Settings > Authorized domains`, add all app domains (`localhost` and your deployed host).
-2. Create a Firestore database.
-3. Use rules that allow a signed-in user to read and write their own user document and `transactions` subcollection.
+3. Add allowed hosts in `Authentication > Settings > Authorized domains` (for example `localhost` and your deployed host).
+4. Create a Firestore database.
+5. Configure Firestore rules so each authenticated user can only read/write their own data.
 
-Example Firestore rules for this app shape:
+Example rules (minimum baseline for current data shape):
 
 ```txt
 rules_version = '2';
 service cloud.firestore {
-	match /databases/{database}/documents {
-		match /users/{userId} {
-			allow read, write: if request.auth != null && request.auth.uid == userId;
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
 
-			match /transactions/{transactionId} {
-				allow read, write: if request.auth != null && request.auth.uid == userId;
-			}
-		}
-	}
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
 }
 ```
 
-## Google login (implemented)
+## Google Sign-In notes
 
-The auth page includes Google buttons in both login and sign-up flows.
+- GIS rendered button is used on login when a client ID is present.
+- Popup fallback is used when GIS is unavailable.
+- Add your client ID in `program/pages/login.html`:
+  - `<meta name="google-signin-client_id" content="YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com" />`
 
-- Login uses the Google Identity Services (GIS) rendered button, then exchanges the Google credential with Firebase via `signInWithCredential`.
-- If GIS is unavailable or no GIS client ID is configured, login falls back to `signInWithPopup`.
-- `Sign up with Google` provisions a new user profile document (and family role links if account type is `Parent Portal` or `Child Account`).
-- Existing Google users without a Firestore profile are auto-provisioned on first successful login.
-- Popup-specific errors are handled (`popup blocked`, `popup closed`, `account exists with different credential`).
+## Data model notes
 
-GIS client ID setup:
+- User profiles are stored at `users/{uid}`.
+- Transactions are stored at `users/{uid}/transactions/{transactionId}`.
+- Savings goals and split ratios are stored under each user document.
+- Parent-family membership links are stored in `users/{parentUid}/familyMembers/{memberUid}`.
 
-- Add your Google web client ID to `login.html` in the `meta` tag:
-	- `<meta name="google-signin-client_id" content="YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com" />`
-- This is required for the GIS rendered login button.
+## Maintenance notes
 
-Relevant implementation files:
-
-- `assets/js/auth.js` (Google provider sign-in, user provisioning, auth state handling)
-- `login.html` (Google auth buttons)
-- `styles.css` (Google button styling)
-
-## Notes
-
-- Transactions are stored under `users/{uid}/transactions`.
-- Open `login.html` first if you are not already authenticated.
-- Serve the project from `http://localhost` or hosting instead of opening the HTML files directly with `file://`.
+- Shared styles should be edited in `program/styles.css` only.
+- Keep comments in JS focused on non-obvious business logic (allocation model, role/family flows, and auth provisioning).

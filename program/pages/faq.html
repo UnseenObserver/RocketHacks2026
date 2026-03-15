@@ -7,7 +7,7 @@
   <title>MoneyFirst | FAQ</title>
   <link href="https://fonts.googleapis.com/css2?family=Margarine&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="../styles.css" />
 </head>
 <body>
   <div class="container">
@@ -162,6 +162,16 @@
 
       <div class="faq-item">
         <button class="faq-question" type="button" aria-expanded="false">
+          Can I delete my account and data?
+          <span class="faq-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="faq-answer" hidden>
+          <p>Yes. You can clear transaction history from the Dashboard at any time. If you want your full account removed, contact the project maintainers through GitHub and include the email tied to your account so we can verify and process deletion.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" type="button" aria-expanded="false">
           How do I sign out?
           <span class="faq-icon" aria-hidden="true">+</span>
         </button>
@@ -170,9 +180,67 @@
         </div>
       </div>
     </section>
+
+    <section class="form-section faq-section">
+      <h2>Family Portal</h2>
+
+      <div class="faq-item">
+        <button class="faq-question" type="button" aria-expanded="false">
+          What is the difference between Parent and Child accounts?
+          <span class="faq-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="faq-answer" hidden>
+          <p>Parent accounts can create family spaces, manage invite codes, and view linked child activity in Parent Portal. Child accounts can join a family using an invite code and manage their own budgeting data.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" type="button" aria-expanded="false">
+          How do I link a child account to a parent?
+          <span class="faq-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="faq-answer" hidden>
+          <p>A parent can share their invite code from the Account page. During sign-up (or from Family Portal settings), the child enters that code to connect to the family group.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" type="button" aria-expanded="false">
+          Can I switch account roles later?
+          <span class="faq-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="faq-answer" hidden>
+          <p>Yes. On the Account page, use <strong>Switch Account</strong> in Family Portal settings. Some family data and visibility may change based on your new role.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="form-section faq-section">
+      <h2>Privacy & Reliability</h2>
+
+      <div class="faq-item">
+        <button class="faq-question" type="button" aria-expanded="false">
+          Does MoneyFirst connect to my bank account automatically?
+          <span class="faq-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="faq-answer" hidden>
+          <p>No. MoneyFirst does not directly connect to your bank account. Transaction data is entered by you, and all calculations are based on the values you provide.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" type="button" aria-expanded="false">
+          What happens if I lose internet connection?
+          <span class="faq-icon" aria-hidden="true">+</span>
+        </button>
+        <div class="faq-answer" hidden>
+          <p>Some static parts of the app may still open from local cache, but account sync and live data updates require an internet connection. Reconnect and refresh if data appears out of date.</p>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <script type="module" src="assets/js/theme.js"></script>
+  <script type="module" src="../assets/js/theme.js"></script>
   <script>
     if (new URLSearchParams(location.search).get('embedded') === '1') document.body.classList.add('embedded');
 

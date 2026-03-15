@@ -89,12 +89,12 @@ let pendingProfilePhotoObjectUrl = '';
 let hasUnappliedCrop = false;
 
 const PRESET_AVATAR_SOURCES = {
-  astronaut: 'assets/images/avatars/avatar-1.svg',
-  'blue-cap': 'assets/images/avatars/avatar-2.svg',
-  'green-hoodie': 'assets/images/avatars/avatar-3.svg',
-  'star-glasses': 'assets/images/avatars/avatar-4.svg',
-  'orange-playful': 'assets/images/avatars/avatar-5.svg',
-  superhero: 'assets/images/avatars/avatar-6.svg'
+  astronaut: '../assets/images/avatars/avatar-1.svg',
+  'blue-cap': '../assets/images/avatars/avatar-2.svg',
+  'green-hoodie': '../assets/images/avatars/avatar-3.svg',
+  'star-glasses': '../assets/images/avatars/avatar-4.svg',
+  'orange-playful': '../assets/images/avatars/avatar-5.svg',
+  superhero: '../assets/images/avatars/avatar-6.svg'
 };
 
 const PROFILE_PHOTO_SIZE = 192;
@@ -107,7 +107,7 @@ const cropState = {
 };
 
 function getDefaultProfilePhotoUrl() {
-  return 'assets/images/default-profile.svg';
+  return '../assets/images/default-profile.svg';
 }
 
 function getPresetAvatarSource(avatarName = '') {
@@ -256,6 +256,7 @@ function setRoleSwitchPanelOpen(show) {
 }
 
 function renderRoleSwitchControl(role = 'solo') {
+  // Role changes are intentionally restricted from this UI for child accounts.
   const canShow = role === 'solo' || role === 'parent';
 
   if (elements.roleSwitchRow) {
@@ -371,6 +372,7 @@ function renderFamilySection() {
   setFamilySectionMode(role);
   renderRoleSwitchControl(role);
 
+  // One role-specific panel is active at a time to keep permissions and copy unambiguous.
   if (role === 'parent') {
     renderParentFamilyPanel();
     return;

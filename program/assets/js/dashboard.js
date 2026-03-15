@@ -94,12 +94,12 @@ let currentUserProfile = null;
 let parentPortalChildren = [];
 
 const PRESET_AVATAR_SOURCES = {
-  astronaut: 'assets/images/avatars/avatar-1.svg',
-  'blue-cap': 'assets/images/avatars/avatar-2.svg',
-  'green-hoodie': 'assets/images/avatars/avatar-3.svg',
-  'star-glasses': 'assets/images/avatars/avatar-4.svg',
-  'orange-playful': 'assets/images/avatars/avatar-5.svg',
-  superhero: 'assets/images/avatars/avatar-6.svg'
+  astronaut: '../assets/images/avatars/avatar-1.svg',
+  'blue-cap': '../assets/images/avatars/avatar-2.svg',
+  'green-hoodie': '../assets/images/avatars/avatar-3.svg',
+  'star-glasses': '../assets/images/avatars/avatar-4.svg',
+  'orange-playful': '../assets/images/avatars/avatar-5.svg',
+  superhero: '../assets/images/avatars/avatar-6.svg'
 };
 
 function asNumber(value) {
@@ -172,7 +172,7 @@ function updateBreakdown(balance) {
 
   const usableBalance = Math.max(0, asNumber(balance));
 
-  // Gross income (sum of all income transactions, before expenses)
+  // Gross-income model: category allocations are calculated before expenses, then category spend is subtracted.
   const grossIncome = transactions
     .filter((t) => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -195,7 +195,7 @@ function updateBreakdown(balance) {
   // Allocation base from gross income (not net) so each category absorbs only its own expenses
   const grossAfterBills = Math.max(0, grossIncome - billsTotal);
 
-  // Net balance after bills still used for savings goal persistence (unchanged behaviour)
+  // Savings goals remain tied to net-after-bills to preserve existing user-visible behavior.
   const balanceAfterBills = Math.max(0, usableBalance - billsTotal);
 
   const percentGroups = (splitRatios.percentageCategories || []).map((category) => {
@@ -307,6 +307,7 @@ function persistSavingsGoalAllocations(allocations) {
 
     const newSaved = Math.round(Math.min(allocation.amount, matchingGoal.amount) * 100) / 100;
 
+    // Skip unchanged writes to avoid unnecessary Firestore updates during frequent recalculations.
     if (lastPersistedSavingsAllocations[matchingGoal.id] === newSaved) {
       continue;
     }
@@ -1179,7 +1180,7 @@ function getHeaderGreeting(firstName) {
 }
 
 function getDefaultProfilePhotoUrl() {
-  return 'assets/images/default-profile.svg';
+  return '../assets/images/default-profile.svg';
 }
 
 function getPresetAvatarSource(avatarName = '') {

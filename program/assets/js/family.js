@@ -9,6 +9,7 @@ import {
   where
 } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js';
 
+// Intentionally omits ambiguous characters (I, O, 0, 1) to reduce invite-code entry errors.
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function randomInviteCharacter() {
@@ -76,6 +77,7 @@ export async function findFamilyByInviteCode(inviteCode) {
     return null;
   }
 
+  // Invite codes are only valid for active parent-owned family records.
   const parentQuery = query(
     collection(db, 'users'),
     where('inviteCode', '==', normalizedCode),

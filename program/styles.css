@@ -2351,13 +2351,38 @@ body.embedded header {
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
+  body {
+    padding: 16px 8px;
+  }
+
+  .container {
+    gap: 16px;
+  }
+
+  header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0 4px;
+  }
+
+  .header-title {
+    flex: 0 1 auto;
+  }
+
+  .header-title .header-logo {
+    height: 56px;
+  }
+
   .header-tools {
     width: 100%;
     justify-content: space-between;
+    min-width: 0;
   }
 
   .header-greeting {
     font-size: 0.85rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .btn-settings-trigger {
@@ -2374,8 +2399,85 @@ body.embedded header {
     grid-template-columns: 1fr;
   }
 
+  .summary-left {
+    gap: 16px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .tabs {
+    width: 100%;
+  }
+
+  .tab {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+    padding: 10px 12px;
+  }
+
   .form-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .history-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .transaction-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .transaction-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .section-heading-row {
+    flex-wrap: wrap;
+  }
+
+  .role-switch-row {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .role-switch-panel {
+    left: 0;
+    right: auto;
+    width: min(340px, calc(100vw - 32px));
+  }
+
+  .family-invite-code-box {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .family-invite-code-box strong {
+    word-break: break-word;
+  }
+
+  .family-join-parent-row {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .modal-content {
+    width: min(400px, calc(100vw - 16px));
+    padding: 18px 14px 14px;
+  }
+
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-actions .btn-secondary,
+  .modal-actions .btn-add {
+    flex: 1 1 140px;
   }
 
   .split-row {
@@ -2422,6 +2524,10 @@ body.embedded header {
 }
 
 @media (max-width: 420px) {
+  .tab {
+    flex-basis: 100%;
+  }
+
   .form-row {
     grid-template-columns: 1fr;
   }

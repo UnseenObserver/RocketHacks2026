@@ -130,6 +130,7 @@ function ensureUnspecifiedCategory(categories) {
 }
 
 function syncUnspecifiedPercentageCategory() {
+  // "Unspecified" acts as the auto-balancing bucket so all percentage allocations stay at or below 100%.
   percentageCategories = ensureUnspecifiedCategory(percentageCategories);
 
   const unspecifiedIndex = findUnspecifiedCategoryIndex(percentageCategories);
@@ -159,6 +160,7 @@ function syncSavingsGoalAllocationsWithGoals() {
     return false;
   });
 
+  // If a goal is deleted, its previous allocation is returned to the auto-managed bucket.
   if (removedPercentTotal > 0) {
     percentageCategories = ensureUnspecifiedCategory(percentageCategories);
     const unspecifiedIndex = findUnspecifiedCategoryIndex(percentageCategories);
